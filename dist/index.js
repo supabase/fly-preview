@@ -628,7 +628,7 @@ function run() {
                 yield (0, app_1.deleteApp)(ref);
             }
             catch (error) {
-                console.log(error);
+                // ignore not found error
             }
             // Generate jwt tokens
             const jwt_secret = process.env.JWT_SECRET ||

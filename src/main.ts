@@ -28,7 +28,7 @@ async function run(): Promise<void> {
     try {
       await deleteApp(ref)
     } catch (error) {
-      console.log(error)
+      // ignore not found error
     }
     // Generate jwt tokens
     const jwt_secret =
