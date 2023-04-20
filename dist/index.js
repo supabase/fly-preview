@@ -621,14 +621,14 @@ function run() {
         if (!process.env.FLY_API_TOKEN) {
             return core.setFailed('missing required env: FLY_API_TOKEN');
         }
-        const ref = process.env.GITHUB_HEAD_REF || 'default';
-        // Cleanup existing deployments
         try {
-            yield (0, app_1.deleteApp)(ref);
-        }
-        catch (error) { }
-        try {
-            // Generate jwt tokens
+            const ref = process.env.GITHUB_HEAD_REF || 'default';
+            console.log('Cleaning up existing deployments');
+            try {
+                yield (0, app_1.deleteApp)(ref);
+            }
+            catch (error) { }
+            console.log('Generating JWT tokens');
             const jwt_secret = process.env.JWT_SECRET ||
                 'super-secret-jwt-token-with-at-least-32-characters-long';
             const jwt_tokens = generate_jwt(jwt_secret, ref);
@@ -646,11 +646,12 @@ function run() {
                     PROJECT_REF: ref
                 }
             };
-            // Deploy fly project
+            console.log('Deploying fly project');
             try {
                 yield (0, deploy_1.deployInfrastructure)(config);
             }
             catch (error) {
+                console.log(error);
                 yield (0, app_1.deleteApp)(ref);
                 throw error;
             }
