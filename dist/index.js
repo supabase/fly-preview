@@ -618,18 +618,16 @@ const generate_jwt = (jwt_secret, ref) => {
 };
 function run() {
     return __awaiter(this, void 0, void 0, function* () {
+        if (!process.env.FLY_API_TOKEN) {
+            return core.setFailed('missing required env: FLY_API_TOKEN');
+        }
+        const ref = process.env.GITHUB_HEAD_REF || 'default';
+        // Cleanup existing deployments
         try {
-            if (!process.env.FLY_API_TOKEN) {
-                throw new Error('missing required env: FLY_API_TOKEN');
-            }
-            const ref = process.env.GITHUB_HEAD_REF || 'default';
-            // Cleanup existing deployments
-            try {
-                yield (0, app_1.deleteApp)(ref);
-            }
-            catch (error) {
-                // ignore not found error
-            }
+            yield (0, app_1.deleteApp)(ref);
+        }
+        catch (error) { }
+        try {
             // Generate jwt tokens
             const jwt_secret = process.env.JWT_SECRET ||
                 'super-secret-jwt-token-with-at-least-32-characters-long';

@@ -19,17 +19,15 @@ const generate_jwt = (jwt_secret: string, ref: string) => {
 }
 
 async function run(): Promise<void> {
+  if (!process.env.FLY_API_TOKEN) {
+    return core.setFailed('missing required env: FLY_API_TOKEN')
+  }
+  const ref = process.env.GITHUB_HEAD_REF || 'default'
+  // Cleanup existing deployments
   try {
-    if (!process.env.FLY_API_TOKEN) {
-      throw new Error('missing required env: FLY_API_TOKEN')
-    }
-    const ref = process.env.GITHUB_HEAD_REF || 'default'
-    // Cleanup existing deployments
-    try {
-      await deleteApp(ref)
-    } catch (error) {
-      // ignore not found error
-    }
+    await deleteApp(ref)
+  } catch (error) {}
+  try {
     // Generate jwt tokens
     const jwt_secret =
       process.env.JWT_SECRET ||
