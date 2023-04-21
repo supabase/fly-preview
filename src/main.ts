@@ -6,16 +6,16 @@ import {deployInfrastructure, FlyConfig} from './fly/deploy'
 const generate_jwt = (jwt_secret: string, ref: string) => {
   const options = {expiresIn: '10y'}
 
-  const admin_api_jwt = {iss: 'supabase', ref, role: 'supabase_admin'}
-  const admin_api_key = jwt.sign(admin_api_jwt, jwt_secret, options)
+  const admin_jwt = {iss: 'supabase', ref, role: 'supabase_admin'}
+  const admin_api_key = jwt.sign(admin_jwt, jwt_secret, options)
 
   const anon_jwt = {iss: 'supabase', ref, role: 'anon'}
   const anon_key = jwt.sign(anon_jwt, jwt_secret, options)
 
   const service_jwt = {iss: 'supabase', ref, role: 'service_role'}
-  const service_key = jwt.sign(service_jwt, jwt_secret, options)
+  const service_role_key = jwt.sign(service_jwt, jwt_secret, options)
 
-  return {admin_api_key, anon_key, service_key}
+  return {admin_api_key, anon_key, service_role_key}
 }
 
 async function run(): Promise<void> {
@@ -61,7 +61,7 @@ async function run(): Promise<void> {
     }
     // Dumps action output
     core.setOutput('anon_key', config.secrets.anon_key)
-    core.setOutput('service_key', config.secrets.service_key)
+    core.setOutput('service_role_key', config.secrets.service_role_key)
     core.setOutput('hostname', `${config.name}.fly.dev`)
   } catch (error) {
     if (error instanceof Error) core.setFailed(error.message)

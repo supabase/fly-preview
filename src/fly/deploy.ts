@@ -44,7 +44,7 @@ export interface FlyConfigSecrets {
   pgbouncer_password?: string
   admin_api_key: string
   anon_key: string
-  service_key: string
+  service_role_key: string
   init_payload_presigned_url?: string
   reporting_token?: string
 }

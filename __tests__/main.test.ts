@@ -5,18 +5,15 @@ import {expect, test} from '@jest/globals'
 
 // shows how the runner will run a javascript action with env / stdout protocol
 test('test runs', () => {
-  process.env['INPUT_MILLISECONDS'] = '500'
   const np = process.execPath
   const ip = path.join(__dirname, '..', 'lib', 'main.js')
-  const options: cp.ExecFileSyncOptions = {
-    env: process.env
-  }
   try {
-    console.log(cp.execFileSync(np, [ip], options).toString())
+    const stdout = cp.execFileSync(np, [ip], {env: process.env})
+    console.log(stdout.toString())
   } catch (error) {
     // @ts-ignore TS18046: 'error' is of type 'unknown'.
-    expect(error.stdout).toStrictEqual(
-      Buffer.from('::error::missing required env: FLY_API_TOKEN\n')
+    expect(error.stdout.toString()).toStrictEqual(
+      '::error::missing required env: FLY_API_TOKEN\n'
     )
   }
 })

@@ -721,13 +721,13 @@ const app_1 = __nccwpck_require__(7096);
 const deploy_1 = __nccwpck_require__(4742);
 const generate_jwt = (jwt_secret, ref) => {
     const options = { expiresIn: '10y' };
-    const admin_api_jwt = { iss: 'supabase', ref, role: 'supabase_admin' };
-    const admin_api_key = jsonwebtoken_1.default.sign(admin_api_jwt, jwt_secret, options);
+    const admin_jwt = { iss: 'supabase', ref, role: 'supabase_admin' };
+    const admin_api_key = jsonwebtoken_1.default.sign(admin_jwt, jwt_secret, options);
     const anon_jwt = { iss: 'supabase', ref, role: 'anon' };
     const anon_key = jsonwebtoken_1.default.sign(anon_jwt, jwt_secret, options);
     const service_jwt = { iss: 'supabase', ref, role: 'service_role' };
-    const service_key = jsonwebtoken_1.default.sign(service_jwt, jwt_secret, options);
-    return { admin_api_key, anon_key, service_key };
+    const service_role_key = jsonwebtoken_1.default.sign(service_jwt, jwt_secret, options);
+    return { admin_api_key, anon_key, service_role_key };
 };
 function run() {
     return __awaiter(this, void 0, void 0, function* () {
@@ -770,7 +770,7 @@ function run() {
             }
             // Dumps action output
             core.setOutput('anon_key', config.secrets.anon_key);
-            core.setOutput('service_key', config.secrets.service_key);
+            core.setOutput('service_role_key', config.secrets.service_role_key);
             core.setOutput('hostname', `${config.name}.fly.dev`);
         }
         catch (error) {

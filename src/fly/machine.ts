@@ -165,8 +165,8 @@ export interface MachineResponse {
   events: (StartEvent | LaunchEvent)[]
   checks: {
     name: string
-    status: 'passing' | 'warning'
-    output: 'Success' | 'waiting for status update'
+    status: 'passing' | 'warning' | 'critical'
+    output: string
     updated_at: string
   }[]
 }
