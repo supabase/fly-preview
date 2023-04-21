@@ -90,3 +90,64 @@ export const deleteVolume = async (
     query: deleteVolumeQuery,
     variables: {input}
   })
+
+// Ref: https://github.com/superfly/flyctl/blob/master/api/resource_volumes.go#L155
+export interface ForkVolumeInput {
+  appId: string
+  sourceVolId: string
+  name?: string
+  machinesOnly?: boolean
+  lockId?: string
+}
+
+export interface ForkVolumeOutput {
+  forkVolume: {
+    app: {
+      name: string
+    }
+    volume: {
+      id: string
+      name: string
+      app: {
+        name: string
+      }
+      region: string
+      sizeGb: number
+      encrypted: boolean
+      createdAt: string
+      host: {
+        id: string
+      }
+    }
+  }
+}
+
+const forkVolumeQuery = `mutation($input: ForkVolumeInput!) {
+  forkVolume(input: $input) {
+    app {
+      name
+    }
+    volume {
+      id
+      name
+      app{
+        name
+      }
+      region
+      sizeGb
+      encrypted
+      createdAt
+      host {
+        id
+      }
+    }
+  }
+}`
+
+export const forkVolume = async (
+  input: ForkVolumeInput
+): Promise<ForkVolumeOutput> =>
+  await gqlPostOrThrow({
+    query: forkVolumeQuery,
+    variables: {input}
+  })

@@ -11,6 +11,44 @@ export enum ConnectionHandler {
   PROXY_PROTO = 'proxy_proto'
 }
 
+interface ServiceConfig {
+  // tcp or udp. Learn more about running raw TCP/UDP services.
+  protocol: 'tcp' | 'udp'
+  // load balancing concurrency settings
+  concurrency?: {
+    // connections (TCP) or requests (HTTP). Defaults to connections.
+    type: 'connections' | 'requests'
+    // "ideal" service concurrency. We will attempt to spread load to keep services at or below this limit
+    soft_limit: number
+    // maximum allowed concurrency. We will queue or reject when a service is at this limit
+    hard_limit: number
+  }
+  // Port the machine VM listens on
+  internal_port: number
+  // An array of objects defining the service's ports and associated handlers. Options:
+  ports: {
+    // Public-facing port number
+    port: number
+    // Array of connection handlers for TCP-based services.
+    handlers?: ConnectionHandler[]
+  }[]
+}
+
+interface HealthCheckConfig {
+  // tcp or http
+  type: 'tcp' | 'http'
+  // The port to connect to, likely should be the same as internal_port
+  port: number
+  // The time between connectivity checks
+  interval: string
+  // The maximum time a connection can take before being reported as failing its healthcheck
+  timeout: string
+  // For http checks, the HTTP method to use to when making the request
+  method?: string
+  // For http checks, the path to send the request to
+  path?: string
+}
+
 export interface MachineConfig {
   // The Docker image to run
   image: string
@@ -28,28 +66,7 @@ export interface MachineConfig {
   // An object filled with key/value pairs to be set as environment variables
   env?: Record<string, string>
   // An array of objects that define a single network service. Check the machines networking section for more information. Options:
-  services: {
-    // tcp or udp. Learn more about running raw TCP/UDP services.
-    protocol: 'tcp' | 'udp'
-    // load balancing concurrency settings
-    concurrency?: {
-      // connections (TCP) or requests (HTTP). Defaults to connections.
-      type: 'connections' | 'requests'
-      // "ideal" service concurrency. We will attempt to spread load to keep services at or below this limit
-      soft_limit: number
-      // maximum allowed concurrency. We will queue or reject when a service is at this limit
-      hard_limit: number
-    }
-    // Port the machine VM listens on
-    internal_port: number
-    // An array of objects defining the service's ports and associated handlers. Options:
-    ports: {
-      // Public-facing port number
-      port: number
-      // Array of connection handlers for TCP-based services.
-      handlers?: ConnectionHandler[]
-    }[]
-  }[]
+  services: ServiceConfig[]
   // An optional array of objects defining multiple processes to run within a VM. The Machine will stop if any process exits without error.
   processes?: {
     // Process name
@@ -75,23 +92,7 @@ export interface MachineConfig {
   // An optional object that defines one or more named checks
   // the key for each check is the check name
   // the value for each check supports:
-  checks?: Record<
-    string,
-    {
-      // tcp or http
-      type: 'tcp' | 'http'
-      // The port to connect to, likely should be the same as internal_port
-      port: number
-      // The time between connectivity checks
-      interval: string
-      // The maximum time a connection can take before being reported as failing its healthcheck
-      timeout: string
-      // For http checks, the HTTP method to use to when making the request
-      method?: string
-      // For http checks, the path to send the request to
-      path?: string
-    }
-  >
+  checks?: Record<string, HealthCheckConfig>
 }
 
 // Ref: https://fly.io/docs/machines/working-with-machines/#create-a-machine
@@ -102,6 +103,72 @@ export interface CreateMachineRequest {
   region?: string
   // An object defining the machine configuration. Options
   config: MachineConfig
+}
+
+interface FlyEvent {
+  id: string
+  type: string
+  status: string
+  source: 'flyd' | 'user'
+  timestamp: number
+}
+
+interface StartEvent extends FlyEvent {
+  type: 'start'
+  status: 'started'
+  source: 'flyd'
+}
+
+interface LaunchEvent extends FlyEvent {
+  type: 'launch'
+  status: 'created'
+  source: 'user'
+}
+
+interface MachineResponse {
+  id: string
+  name: string
+  state: 'started' | 'stopped' | 'destroyed'
+  region: string
+  instance_id: string
+  private_ip: string
+  config: {
+    env: Record<string, string>
+    init: {}
+    mounts: {
+      encrypted: boolean
+      path: string
+      size_gb: number
+      volume: string
+      name: string
+    }[]
+    services: ServiceConfig[]
+    checks: Record<string, HealthCheckConfig>
+    image: string
+    restart: {}
+    guest: {
+      cpu_kind: 'shared'
+      cpus: number
+      memory_mb: number
+    }
+    size: 'shared-cpu-1x' | 'shared-cpu-2x' | 'shared-cpu-4x'
+  }
+  image_ref: {
+    registry: string
+    repository: string
+    tag: string
+    digest: string
+    labels?: string[]
+  }
+  created_at: string
+  updated_at: string
+  events: Array<StartEvent | LaunchEvent>
+  checks: {
+    name: string
+    status: 'passing' | 'warning'
+    output: 'Success' | 'waiting for status update'
+    updated_at: string
+  }[]
 }
 
 export const FLY_API_HOSTNAME =
@@ -134,7 +201,7 @@ interface MachineRequest {
   machineId: string
 }
 
-interface MachineResponse {
+interface OkResponse {
   ok: boolean
 }
 
@@ -142,7 +209,7 @@ type DeleteMachineRequest = MachineRequest
 
 export const deleteMachine = async (
   payload: DeleteMachineRequest
-): Promise<MachineResponse> => {
+): Promise<OkResponse> => {
   const token = process.env.FLY_API_TOKEN
   const resp = await crossFetch(
     `${FLY_API_HOSTNAME}/v1/apps/${payload.appId}/machines/${payload.machineId}`,
@@ -180,7 +247,7 @@ interface StopMachineRequest extends MachineRequest {
 
 export const stopMachine = async (
   payload: StopMachineRequest
-): Promise<MachineResponse> => {
+): Promise<OkResponse> => {
   const token = process.env.FLY_API_TOKEN
   const resp = await crossFetch(
     `${FLY_API_HOSTNAME}/v1/apps/${payload.appId}/machines/${payload.machineId}/stop`,
@@ -204,7 +271,7 @@ type StartMachineRequest = MachineRequest
 
 export const startMachine = async (
   payload: StartMachineRequest
-): Promise<MachineResponse> => {
+): Promise<OkResponse> => {
   const token = process.env.FLY_API_TOKEN
   const resp = await crossFetch(
     `${FLY_API_HOSTNAME}/v1/apps/${payload.appId}/machines/${payload.machineId}/start`,
@@ -215,6 +282,27 @@ export const startMachine = async (
         'Content-Type': 'application/json'
       },
       body: JSON.stringify(payload)
+    }
+  )
+  const text = await resp.text()
+  if (!resp.ok) {
+    throw new Error(`${resp.status}: ${text}`)
+  }
+  return JSON.parse(text)
+}
+
+export const listMachine = async (
+  appId: string
+): Promise<MachineResponse[]> => {
+  const token = process.env.FLY_API_TOKEN
+  const resp = await crossFetch(
+    `${FLY_API_HOSTNAME}/v1/apps/${appId}/machines`,
+    {
+      method: 'GET',
+      headers: {
+        Authorization: `Bearer ${token}`,
+        'Content-Type': 'application/json'
+      }
     }
   )
   const text = await resp.text()
