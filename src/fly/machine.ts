@@ -172,7 +172,7 @@ export interface MachineResponse {
 }
 
 export const FLY_API_HOSTNAME =
-  process.env.FLY_API_HOSTNAME || 'http://127.0.0.1:4280'
+  process.env.FLY_API_HOSTNAME || 'https://api.machines.dev'
 
 export const createMachine = async (
   payload: CreateMachineRequest
