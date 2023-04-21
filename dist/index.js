@@ -131,6 +131,34 @@ const machine_1 = __nccwpck_require__(2377);
 const network_1 = __nccwpck_require__(8796);
 const secret_1 = __nccwpck_require__(8499);
 const volume_1 = __nccwpck_require__(4881);
+const resolveVolume = (appId) => __awaiter(void 0, void 0, void 0, function* () {
+    const machines = yield (0, machine_1.listMachine)(appId);
+    const mount = machines.flatMap(m => m.config.mounts)[0];
+    if (!mount) {
+        throw new Error(`Failed to resolve volume for app: ${appId}`);
+    }
+    return mount.volume;
+});
+const makeVolume = (name, region, volume_size_gb, projectRef) => __awaiter(void 0, void 0, void 0, function* () {
+    const volumeName = `${name.replace(/-/g, '_')}_pgdata`;
+    if (projectRef) {
+        const source = yield resolveVolume(projectRef);
+        const output = yield (0, volume_1.forkVolume)({
+            appId: name,
+            sourceVolId: source,
+            name: volumeName,
+            machinesOnly: true
+        });
+        return output.forkVolume;
+    }
+    const output = yield (0, volume_1.createVolume)({
+        appId: name,
+        name: volumeName,
+        sizeGb: volume_size_gb,
+        region
+    });
+    return output.createVolume;
+});
 function deployInfrastructure(config) {
     return __awaiter(this, void 0, void 0, function* () {
         const orgId = process.env.FLY_ORGANIZATION_ID || 'personal';
@@ -141,13 +169,8 @@ function deployInfrastructure(config) {
             organizationId: orgId,
             network: `${name}-network`
         });
-        const [{ createVolume: pgdata }, ip] = yield Promise.all([
-            (0, volume_1.createVolume)({
-                appId: name,
-                name: `${name.replace(/-/g, '_')}_pgdata`,
-                sizeGb: volume_size_gb,
-                region
-            }),
+        const [pgdata, ip] = yield Promise.all([
+            makeVolume(name, region, volume_size_gb, process.env.PROJECT_REF),
             (0, network_1.allocateIpAddress)({
                 appId: name,
                 type: network_1.AddressType.v4
@@ -254,7 +277,7 @@ function deployInfrastructure(config) {
             ];
         }
         const machine = yield (0, machine_1.createMachine)(req);
-        return { machine, ip, volume: pgdata };
+        return { machine, ip, volume: pgdata.volume };
     });
 }
 exports.deployInfrastructure = deployInfrastructure;
@@ -280,7 +303,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", ({ value: true }));
-exports.startMachine = exports.stopMachine = exports.deleteMachine = exports.createMachine = exports.FLY_API_HOSTNAME = exports.ConnectionHandler = void 0;
+exports.listMachine = exports.startMachine = exports.stopMachine = exports.deleteMachine = exports.createMachine = exports.FLY_API_HOSTNAME = exports.ConnectionHandler = void 0;
 const cross_fetch_1 = __importDefault(__nccwpck_require__(9805));
 var ConnectionHandler;
 (function (ConnectionHandler) {
@@ -362,6 +385,22 @@ const startMachine = (payload) => __awaiter(void 0, void 0, void 0, function* ()
     return JSON.parse(text);
 });
 exports.startMachine = startMachine;
+const listMachine = (appId) => __awaiter(void 0, void 0, void 0, function* () {
+    const token = process.env.FLY_API_TOKEN;
+    const resp = yield (0, cross_fetch_1.default)(`${exports.FLY_API_HOSTNAME}/v1/apps/${appId}/machines`, {
+        method: 'GET',
+        headers: {
+            Authorization: `Bearer ${token}`,
+            'Content-Type': 'application/json'
+        }
+    });
+    const text = yield resp.text();
+    if (!resp.ok) {
+        throw new Error(`${resp.status}: ${text}`);
+    }
+    return JSON.parse(text);
+});
+exports.listMachine = listMachine;
 
 
 /***/ }),
@@ -512,7 +551,7 @@ var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, ge
     });
 };
 Object.defineProperty(exports, "__esModule", ({ value: true }));
-exports.deleteVolume = exports.createVolume = void 0;
+exports.forkVolume = exports.deleteVolume = exports.createVolume = void 0;
 const client_1 = __nccwpck_require__(6334);
 const createVolumeQuery = `mutation($input: CreateVolumeInput!) {
   createVolume(input: $input) {
@@ -557,6 +596,34 @@ const deleteVolume = (input) => __awaiter(void 0, void 0, void 0, function* () {
     });
 });
 exports.deleteVolume = deleteVolume;
+const forkVolumeQuery = `mutation($input: ForkVolumeInput!) {
+  forkVolume(input: $input) {
+    app {
+      name
+    }
+    volume {
+      id
+      name
+      app{
+        name
+      }
+      region
+      sizeGb
+      encrypted
+      createdAt
+      host {
+        id
+      }
+    }
+  }
+}`;
+const forkVolume = (input) => __awaiter(void 0, void 0, void 0, function* () {
+    return yield (0, client_1.gqlPostOrThrow)({
+        query: forkVolumeQuery,
+        variables: { input }
+    });
+});
+exports.forkVolume = forkVolume;
 
 
 /***/ }),

@@ -1,8 +1,18 @@
 import {createApp} from './app'
-import {ConnectionHandler, CreateMachineRequest, createMachine} from './machine'
-import {AddressType, allocateIpAddress} from './network'
+import {
+  ConnectionHandler,
+  CreateMachineRequest,
+  MachineResponse,
+  createMachine,
+  listMachine
+} from './machine'
+import {
+  AddressType,
+  AllocateIPAddressOutput,
+  allocateIpAddress
+} from './network'
 import {setSecrets} from './secret'
-import {createVolume} from './volume'
+import {VolumeResponse, createVolume, forkVolume} from './volume'
 
 export interface CommonConfig {
   name: string
@@ -38,7 +48,47 @@ export interface FlyConfigSecrets {
   reporting_token?: string
 }
 
-export async function deployInfrastructure(config: FlyConfig): Promise<any> {
+const resolveVolume = async (appId: string): Promise<string> => {
+  const machines = await listMachine(appId)
+  const mount = machines.flatMap(m => m.config.mounts)[0]
+  if (!mount) {
+    throw new Error(`Failed to resolve volume for app: ${appId}`)
+  }
+  return mount.volume
+}
+
+const makeVolume = async (
+  name: string,
+  region: string,
+  volume_size_gb: number,
+  projectRef?: string
+): Promise<{volume: VolumeResponse}> => {
+  const volumeName = `${name.replace(/-/g, '_')}_pgdata`
+  if (projectRef) {
+    const source = await resolveVolume(projectRef)
+    const output = await forkVolume({
+      appId: name,
+      sourceVolId: source,
+      name: volumeName,
+      machinesOnly: true
+    })
+    return output.forkVolume
+  }
+  const output = await createVolume({
+    appId: name,
+    name: volumeName,
+    sizeGb: volume_size_gb,
+    region
+  })
+  return output.createVolume
+}
+
+export async function deployInfrastructure(config: FlyConfig): Promise<{
+  machine: MachineResponse
+  ip: AllocateIPAddressOutput
+  volume: VolumeResponse
+}> {
+  // TODO: resolve personal organization id
   const orgId = process.env.FLY_ORGANIZATION_ID || 'personal'
   const API_URL = process.env.SUPABASE_API_URL || 'https://api.supabase.com'
 
@@ -51,13 +101,8 @@ export async function deployInfrastructure(config: FlyConfig): Promise<any> {
     network: `${name}-network`
   })
 
-  const [{createVolume: pgdata}, ip] = await Promise.all([
-    createVolume({
-      appId: name,
-      name: `${name.replace(/-/g, '_')}_pgdata`,
-      sizeGb: volume_size_gb,
-      region
-    }),
+  const [pgdata, ip] = await Promise.all([
+    makeVolume(name, region, volume_size_gb, process.env.PROJECT_REF),
     allocateIpAddress({
       appId: name,
       type: AddressType.v4
@@ -171,5 +216,5 @@ export async function deployInfrastructure(config: FlyConfig): Promise<any> {
 
   const machine = await createMachine(req)
 
-  return {machine, ip, volume: pgdata}
+  return {machine, ip, volume: pgdata.volume}
 }

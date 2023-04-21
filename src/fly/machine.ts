@@ -105,7 +105,7 @@ export interface CreateMachineRequest {
   config: MachineConfig
 }
 
-interface FlyEvent {
+interface BaseEvent {
   id: string
   type: string
   status: string
@@ -113,19 +113,19 @@ interface FlyEvent {
   timestamp: number
 }
 
-interface StartEvent extends FlyEvent {
+interface StartEvent extends BaseEvent {
   type: 'start'
   status: 'started'
   source: 'flyd'
 }
 
-interface LaunchEvent extends FlyEvent {
+interface LaunchEvent extends BaseEvent {
   type: 'launch'
   status: 'created'
   source: 'user'
 }
 
-interface MachineResponse {
+export interface MachineResponse {
   id: string
   name: string
   state: 'started' | 'stopped' | 'destroyed'
@@ -162,7 +162,7 @@ interface MachineResponse {
   }
   created_at: string
   updated_at: string
-  events: Array<StartEvent | LaunchEvent>
+  events: (StartEvent | LaunchEvent)[]
   checks: {
     name: string
     status: 'passing' | 'warning'
@@ -176,7 +176,7 @@ export const FLY_API_HOSTNAME =
 
 export const createMachine = async (
   payload: CreateMachineRequest
-): Promise<any> => {
+): Promise<MachineResponse> => {
   const token = process.env.FLY_API_TOKEN
   const resp = await crossFetch(
     `${FLY_API_HOSTNAME}/v1/apps/${payload.name}/machines`,

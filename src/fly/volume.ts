@@ -10,25 +10,27 @@ export interface CreateVolumeInput {
   snapshotId?: string
 }
 
+export interface VolumeResponse {
+  id: string
+  name: string
+  app: {
+    name: string
+  }
+  region: string
+  sizeGb: number
+  encrypted: boolean
+  createdAt: string
+  host: {
+    id: string
+  }
+}
+
 export interface CreateVolumeOutput {
   createVolume: {
     app: {
       name: string
     }
-    volume: {
-      id: string
-      name: string
-      app: {
-        name: string
-      }
-      region: string
-      sizeGb: number
-      encrypted: boolean
-      createdAt: string
-      host: {
-        id: string
-      }
-    }
+    volume: VolumeResponse
   }
 }
 
@@ -105,20 +107,7 @@ export interface ForkVolumeOutput {
     app: {
       name: string
     }
-    volume: {
-      id: string
-      name: string
-      app: {
-        name: string
-      }
-      region: string
-      sizeGb: number
-      encrypted: boolean
-      createdAt: string
-      host: {
-        id: string
-      }
-    }
+    volume: VolumeResponse
   }
 }
 
