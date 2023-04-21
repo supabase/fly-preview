@@ -325,7 +325,7 @@ var ConnectionHandler;
     // Wrap TCP connection in PROXY protocol
     ConnectionHandler["PROXY_PROTO"] = "proxy_proto";
 })(ConnectionHandler = exports.ConnectionHandler || (exports.ConnectionHandler = {}));
-exports.FLY_API_HOSTNAME = process.env.FLY_API_HOSTNAME || 'http://127.0.0.1:4280';
+exports.FLY_API_HOSTNAME = process.env.FLY_API_HOSTNAME || 'https://api.machines.dev';
 const createMachine = (payload) => __awaiter(void 0, void 0, void 0, function* () {
     const token = process.env.FLY_API_TOKEN;
     const resp = yield (0, cross_fetch_1.default)(`${exports.FLY_API_HOSTNAME}/v1/apps/${payload.name}/machines`, {
