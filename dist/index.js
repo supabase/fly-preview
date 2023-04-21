@@ -129,6 +129,7 @@ exports.deployInfrastructure = void 0;
 const app_1 = __nccwpck_require__(7096);
 const machine_1 = __nccwpck_require__(2377);
 const network_1 = __nccwpck_require__(8796);
+const organization_1 = __nccwpck_require__(8723);
 const secret_1 = __nccwpck_require__(8499);
 const volume_1 = __nccwpck_require__(4881);
 const resolveVolume = (appId) => __awaiter(void 0, void 0, void 0, function* () {
@@ -159,12 +160,18 @@ const makeVolume = (name, region, volume_size_gb, projectRef) => __awaiter(void 
     });
     return output.createVolume;
 });
-function deployInfrastructure(config) {
+const resolveOrgId = () => __awaiter(void 0, void 0, void 0, function* () {
+    const orgId = process.env.FLY_ORGANIZATION_ID;
+    if (orgId) {
+        return orgId;
+    }
+    const slug = process.env.FLY_ORGANIZATION_SLUG || 'personal';
+    const output = yield (0, organization_1.getOrganization)(slug);
+    return output.organization.id;
+});
+function deployInfrastructure({ name, region, volume_size_gb, size, image, secrets, env, db_only }) {
     return __awaiter(this, void 0, void 0, function* () {
-        // TODO: resolve personal organization id
-        const orgId = process.env.FLY_ORGANIZATION_ID || 'personal';
-        const API_URL = process.env.SUPABASE_API_URL || 'https://api.supabase.com';
-        const { name, region, volume_size_gb, size, image, secrets, env, db_only } = config;
+        const orgId = yield resolveOrgId();
         yield (0, app_1.createApp)({
             name,
             organizationId: orgId,
@@ -190,6 +197,7 @@ function deployInfrastructure(config) {
                 }))
             })
         ]);
+        const API_URL = process.env.SUPABASE_API_URL || 'https://api.supabase.com';
         const req = {
             name,
             region,
@@ -463,6 +471,43 @@ const releaseIpAddress = (input) => __awaiter(void 0, void 0, void 0, function* 
     });
 });
 exports.releaseIpAddress = releaseIpAddress;
+
+
+/***/ }),
+
+/***/ 8723:
+/***/ (function(__unused_webpack_module, exports, __nccwpck_require__) {
+
+"use strict";
+
+var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, generator) {
+    function adopt(value) { return value instanceof P ? value : new P(function (resolve) { resolve(value); }); }
+    return new (P || (P = Promise))(function (resolve, reject) {
+        function fulfilled(value) { try { step(generator.next(value)); } catch (e) { reject(e); } }
+        function rejected(value) { try { step(generator["throw"](value)); } catch (e) { reject(e); } }
+        function step(result) { result.done ? resolve(result.value) : adopt(result.value).then(fulfilled, rejected); }
+        step((generator = generator.apply(thisArg, _arguments || [])).next());
+    });
+};
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.getOrganization = void 0;
+const client_1 = __nccwpck_require__(6334);
+const getOrganizationQuery = `query($slug: String!) {
+  organization(slug: $slug) {
+    id
+    slug
+    name
+    type
+    viewerRole
+  }
+}`;
+const getOrganization = (slug) => __awaiter(void 0, void 0, void 0, function* () {
+    return yield (0, client_1.gqlPostOrThrow)({
+        query: getOrganizationQuery,
+        variables: { slug }
+    });
+});
+exports.getOrganization = getOrganization;
 
 
 /***/ }),

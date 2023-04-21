@@ -11,6 +11,7 @@ import {
   AllocateIPAddressOutput,
   allocateIpAddress
 } from './network'
+import {getOrganization} from './organization'
 import {setSecrets} from './secret'
 import {VolumeResponse, createVolume, forkVolume} from './volume'
 
@@ -83,18 +84,31 @@ const makeVolume = async (
   return output.createVolume
 }
 
-export async function deployInfrastructure(config: FlyConfig): Promise<{
+const resolveOrgId = async (): Promise<string> => {
+  const orgId = process.env.FLY_ORGANIZATION_ID
+  if (orgId) {
+    return orgId
+  }
+  const slug = process.env.FLY_ORGANIZATION_SLUG || 'personal'
+  const output = await getOrganization(slug)
+  return output.organization.id
+}
+
+export async function deployInfrastructure({
+  name,
+  region,
+  volume_size_gb,
+  size,
+  image,
+  secrets,
+  env,
+  db_only
+}: FlyConfig): Promise<{
   machine: MachineResponse
   ip: AllocateIPAddressOutput
   volume: VolumeResponse
 }> {
-  // TODO: resolve personal organization id
-  const orgId = process.env.FLY_ORGANIZATION_ID || 'personal'
-  const API_URL = process.env.SUPABASE_API_URL || 'https://api.supabase.com'
-
-  const {name, region, volume_size_gb, size, image, secrets, env, db_only} =
-    config
-
+  const orgId = await resolveOrgId()
   await createApp({
     name,
     organizationId: orgId,
@@ -122,6 +136,7 @@ export async function deployInfrastructure(config: FlyConfig): Promise<{
     })
   ])
 
+  const API_URL = process.env.SUPABASE_API_URL || 'https://api.supabase.com'
   const req: CreateMachineRequest = {
     name,
     region,
