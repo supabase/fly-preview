@@ -161,6 +161,7 @@ const makeVolume = (name, region, volume_size_gb, projectRef) => __awaiter(void 
 });
 function deployInfrastructure(config) {
     return __awaiter(this, void 0, void 0, function* () {
+        // TODO: resolve personal organization id
         const orgId = process.env.FLY_ORGANIZATION_ID || 'personal';
         const API_URL = process.env.SUPABASE_API_URL || 'https://api.supabase.com';
         const { name, region, volume_size_gb, size, image, secrets, env, db_only } = config;
