@@ -108,12 +108,9 @@ export async function deployInfrastructure({
   ip: AllocateIPAddressOutput
   volume: VolumeResponse
 }> {
-  const orgId = await resolveOrgId()
-  await createApp({
-    name,
-    organizationId: orgId,
-    network: `${name}-network`
-  })
+  const organizationId = await resolveOrgId()
+  // Custom network is not supported by fly ssh: `${name}-network`
+  await createApp({name, organizationId})
 
   const [pgdata, ip] = await Promise.all([
     makeVolume(name, region, volume_size_gb, process.env.PROJECT_REF),

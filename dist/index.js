@@ -171,12 +171,9 @@ const resolveOrgId = () => __awaiter(void 0, void 0, void 0, function* () {
 });
 function deployInfrastructure({ name, region, volume_size_gb, size, image, secrets, env, db_only }) {
     return __awaiter(this, void 0, void 0, function* () {
-        const orgId = yield resolveOrgId();
-        yield (0, app_1.createApp)({
-            name,
-            organizationId: orgId,
-            network: `${name}-network`
-        });
+        const organizationId = yield resolveOrgId();
+        // Custom network is not supported by fly ssh: `${name}-network`
+        yield (0, app_1.createApp)({ name, organizationId });
         const [pgdata, ip] = yield Promise.all([
             makeVolume(name, region, volume_size_gb, process.env.PROJECT_REF),
             (0, network_1.allocateIpAddress)({
