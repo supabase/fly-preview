@@ -36,7 +36,7 @@ async function run(): Promise<void> {
     const ref = getProjectRef(
       process.env.NEXT_PUBLIC_SUPABASE_URL
     ).toLowerCase()
-    console.log('Cleaning up existing deployments')
+    console.log('Cleaning up existing deployments:', ref)
     try {
       await deleteApp(ref)
     } catch (error) {}
