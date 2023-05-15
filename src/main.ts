@@ -33,7 +33,9 @@ async function run(): Promise<void> {
     return core.setFailed('missing required env: FLY_API_TOKEN')
   }
   try {
-    const ref = getProjectRef(process.env.NEXT_PUBLIC_SUPABASE_URL)
+    const ref = getProjectRef(
+      process.env.NEXT_PUBLIC_SUPABASE_URL
+    ).toLowerCase()
     console.log('Cleaning up existing deployments')
     try {
       await deleteApp(ref)
