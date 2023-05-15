@@ -50,7 +50,7 @@ async function run(): Promise<void> {
       name: ref,
       region: process.env.FLY_MACHINE_REGION || 'sin',
       size: process.env.FLY_MACHINE_SIZE || 'shared-cpu-4x',
-      image: 'sweatybridge/postgres:dev',
+      image: 'sweatybridge/postgres:20230512-cc4f68f',
       db_only: process.env.DB_ONLY === 'true',
       project_ref: ref,
       volume_size_gb: 1,
