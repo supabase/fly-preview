@@ -18,19 +18,29 @@ const generate_jwt = (jwt_secret: string, ref: string) => {
   return {admin_api_key, anon_key, service_role_key}
 }
 
+const getProjectRef = (url?: string) => {
+  if (url) {
+    return url.split('.')[0]
+  }
+  // Fallback to git repo and branch
+  const repo = process.env.GITHUB_REPOSITORY?.replace('/', '-') ?? 'fly-preview'
+  const branch = process.env.GITHUB_HEAD_REF || 'main'
+  return `${repo}-${branch}`
+}
+
 async function run(): Promise<void> {
   if (!process.env.FLY_API_TOKEN) {
     return core.setFailed('missing required env: FLY_API_TOKEN')
   }
   try {
-    const ref = process.env.GITHUB_HEAD_REF || 'default'
+    const ref = getProjectRef(process.env.NEXT_PUBLIC_SUPABASE_URL)
     console.log('Cleaning up existing deployments')
     try {
       await deleteApp(ref)
     } catch (error) {}
     console.log('Generating JWT tokens')
     const jwt_secret =
-      process.env.JWT_SECRET ||
+      process.env.SUPABASE_AUTH_JWT_SECRET ||
       'super-secret-jwt-token-with-at-least-32-characters-long'
     const jwt_tokens = generate_jwt(jwt_secret, ref)
     // Initialise fly config
@@ -43,9 +53,13 @@ async function run(): Promise<void> {
       project_ref: ref,
       volume_size_gb: 1,
       secrets: {
-        postgres_password: process.env.POSTGRES_PASSWORD || 'postgres',
+        postgres_password: process.env.SUPABASE_DB_PASSWORD || 'postgres',
         jwt_secret,
-        ...jwt_tokens
+        admin_api_key: jwt_tokens.admin_api_key,
+        anon_key: process.env.SUPABASE_AUTH_ANON_KEY ?? jwt_tokens.anon_key,
+        service_role_key:
+          process.env.SUPABASE_AUTH_SERVICE_ROLE_KEY ??
+          jwt_tokens.service_role_key
       },
       env: {
         PROJECT_REF: ref
