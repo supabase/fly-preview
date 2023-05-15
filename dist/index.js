@@ -743,8 +743,8 @@ function run() {
             return core.setFailed('missing required env: FLY_API_TOKEN');
         }
         try {
-            const ref = getProjectRef(process.env.NEXT_PUBLIC_SUPABASE_URL);
-            console.log('Cleaning up existing deployments');
+            const ref = getProjectRef(process.env.NEXT_PUBLIC_SUPABASE_URL).toLowerCase();
+            console.log('Cleaning up existing deployments:', ref);
             try {
                 yield (0, app_1.deleteApp)(ref);
             }
