@@ -1,9 +1,14 @@
 import * as core from '@actions/core'
 import jwt from 'jsonwebtoken'
-import {deleteApp} from './fly/app'
-import {deployInfrastructure, FlyConfig} from './fly/deploy'
+import {deployInfrastructure, fly, FlyConfig, FlyConfigSecrets} from './deploy'
 
-const generate_jwt = (jwt_secret: string, ref: string) => {
+const generate_jwt = (
+  jwt_secret: string,
+  ref: string
+): Pick<
+  FlyConfigSecrets,
+  'admin_api_key' | 'anon_key' | 'service_role_key'
+> => {
   const options = {expiresIn: '10y'}
 
   const admin_jwt = {iss: 'supabase', ref, role: 'supabase_admin'}
@@ -18,7 +23,7 @@ const generate_jwt = (jwt_secret: string, ref: string) => {
   return {admin_api_key, anon_key, service_role_key}
 }
 
-const getProjectRef = (url?: string) => {
+const getProjectRef = (url?: string): string => {
   if (url) {
     return url.split('.')[0]
   }
@@ -38,8 +43,10 @@ async function run(): Promise<void> {
     ).toLowerCase()
     console.log('Cleaning up existing deployments:', ref)
     try {
-      await deleteApp(ref)
-    } catch (error) {}
+      await fly.App.deleteApp(ref)
+    } catch (error) {
+      // App not found
+    }
     console.log('Generating JWT tokens')
     const jwt_secret =
       process.env.SUPABASE_AUTH_JWT_SECRET ||
@@ -72,7 +79,7 @@ async function run(): Promise<void> {
       await deployInfrastructure(config)
     } catch (error) {
       console.log(error)
-      await deleteApp(ref)
+      await fly.App.deleteApp(ref)
       throw error
     }
     // Dumps action output

@@ -1,7 +1,7 @@
 require('./sourcemap-register.js');/******/ (() => { // webpackBootstrap
 /******/ 	var __webpack_modules__ = ({
 
-/***/ 7096:
+/***/ 7538:
 /***/ (function(__unused_webpack_module, exports, __nccwpck_require__) {
 
 "use strict";
@@ -16,124 +16,13 @@ var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, ge
     });
 };
 Object.defineProperty(exports, "__esModule", ({ value: true }));
-exports.deleteApp = exports.createApp = void 0;
-const client_1 = __nccwpck_require__(6334);
-const createAppQuery = `mutation($input: CreateAppInput!) {
-  createApp(input: $input) {
-    app {
-      id
-      name
-      organization {
-        slug
-      }
-      config {
-        definition
-      }
-      regions {
-        name
-        code
-      }
-    }
-  }
-}`;
-// Ref: https://github.com/superfly/flyctl/blob/master/api/resource_apps.go#L329
-const createApp = (input) => __awaiter(void 0, void 0, void 0, function* () {
-    return yield (0, client_1.gqlPostOrThrow)({
-        query: createAppQuery,
-        variables: { input }
-    });
-});
-exports.createApp = createApp;
-const deleteAppQuery = `mutation($appId: ID!) {
-  deleteApp(appId: $appId) {
-    organization {
-      id
-    }
-  }
-}`;
-const deleteApp = (appId) => __awaiter(void 0, void 0, void 0, function* () {
-    return yield (0, client_1.gqlPostOrThrow)({
-        query: deleteAppQuery,
-        variables: { appId }
-    });
-});
-exports.deleteApp = deleteApp;
-
-
-/***/ }),
-
-/***/ 6334:
-/***/ (function(__unused_webpack_module, exports, __nccwpck_require__) {
-
-"use strict";
-
-var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, generator) {
-    function adopt(value) { return value instanceof P ? value : new P(function (resolve) { resolve(value); }); }
-    return new (P || (P = Promise))(function (resolve, reject) {
-        function fulfilled(value) { try { step(generator.next(value)); } catch (e) { reject(e); } }
-        function rejected(value) { try { step(generator["throw"](value)); } catch (e) { reject(e); } }
-        function step(result) { result.done ? resolve(result.value) : adopt(result.value).then(fulfilled, rejected); }
-        step((generator = generator.apply(thisArg, _arguments || [])).next());
-    });
-};
-var __importDefault = (this && this.__importDefault) || function (mod) {
-    return (mod && mod.__esModule) ? mod : { "default": mod };
-};
-Object.defineProperty(exports, "__esModule", ({ value: true }));
-exports.gqlPostOrThrow = exports.FLY_API_GRAPHQL = void 0;
-const cross_fetch_1 = __importDefault(__nccwpck_require__(9805));
-exports.FLY_API_GRAPHQL = 'https://api.fly.io';
-function gqlPostOrThrow(payload) {
-    return __awaiter(this, void 0, void 0, function* () {
-        const token = process.env.FLY_API_TOKEN;
-        const resp = yield (0, cross_fetch_1.default)(`${exports.FLY_API_GRAPHQL}/graphql`, {
-            method: 'POST',
-            headers: {
-                Authorization: `Bearer ${token}`,
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify(payload)
-        });
-        const text = yield resp.text();
-        if (!resp.ok) {
-            throw new Error(`${resp.status}: ${text}`);
-        }
-        const { data, errors } = JSON.parse(text);
-        if (errors) {
-            throw new Error(JSON.stringify(errors));
-        }
-        return data;
-    });
-}
-exports.gqlPostOrThrow = gqlPostOrThrow;
-
-
-/***/ }),
-
-/***/ 7344:
-/***/ (function(__unused_webpack_module, exports, __nccwpck_require__) {
-
-"use strict";
-
-var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, generator) {
-    function adopt(value) { return value instanceof P ? value : new P(function (resolve) { resolve(value); }); }
-    return new (P || (P = Promise))(function (resolve, reject) {
-        function fulfilled(value) { try { step(generator.next(value)); } catch (e) { reject(e); } }
-        function rejected(value) { try { step(generator["throw"](value)); } catch (e) { reject(e); } }
-        function step(result) { result.done ? resolve(result.value) : adopt(result.value).then(fulfilled, rejected); }
-        step((generator = generator.apply(thisArg, _arguments || [])).next());
-    });
-};
-Object.defineProperty(exports, "__esModule", ({ value: true }));
-exports.deployInfrastructure = void 0;
-const app_1 = __nccwpck_require__(7096);
-const machine_1 = __nccwpck_require__(2377);
-const network_1 = __nccwpck_require__(8796);
-const organization_1 = __nccwpck_require__(8723);
-const secret_1 = __nccwpck_require__(8499);
-const volume_1 = __nccwpck_require__(4881);
+exports.deployInfrastructure = exports.fly = void 0;
+const fly_admin_1 = __nccwpck_require__(9907);
+const machine_1 = __nccwpck_require__(2562);
+const network_1 = __nccwpck_require__(9059);
+exports.fly = (0, fly_admin_1.createClient)('FLY_API_TOKEN');
 const resolveVolume = (appId) => __awaiter(void 0, void 0, void 0, function* () {
-    const machines = yield (0, machine_1.listMachine)(appId);
+    const machines = yield exports.fly.Machine.listMachines(appId);
     const mount = machines.flatMap(m => m.config.mounts)[0];
     if (!mount) {
         throw new Error(`Failed to resolve volume for app: ${appId}`);
@@ -144,7 +33,7 @@ const makeVolume = (name, region, volume_size_gb, projectRef) => __awaiter(void 
     const volumeName = `${name.replace(/-/g, '_')}_pgdata`;
     if (projectRef) {
         const source = yield resolveVolume(projectRef);
-        const output = yield (0, volume_1.forkVolume)({
+        const output = yield exports.fly.Volume.forkVolume({
             appId: name,
             sourceVolId: source,
             name: volumeName,
@@ -152,7 +41,7 @@ const makeVolume = (name, region, volume_size_gb, projectRef) => __awaiter(void 
         });
         return output.forkVolume;
     }
-    const output = yield (0, volume_1.createVolume)({
+    const output = yield exports.fly.Volume.createVolume({
         appId: name,
         name: volumeName,
         sizeGb: volume_size_gb,
@@ -166,25 +55,25 @@ const resolveOrgId = () => __awaiter(void 0, void 0, void 0, function* () {
         return orgId;
     }
     const slug = process.env.FLY_ORGANIZATION_SLUG || 'personal';
-    const output = yield (0, organization_1.getOrganization)(slug);
+    const output = yield exports.fly.Organization.getOrganization(slug);
     return output.organization.id;
 });
 function deployInfrastructure({ name, region, volume_size_gb, size, image, secrets, env, db_only }) {
     return __awaiter(this, void 0, void 0, function* () {
         const organizationId = yield resolveOrgId();
         // Custom network is not supported by fly ssh: `${name}-network`
-        yield (0, app_1.createApp)({ name, organizationId });
+        yield exports.fly.App.createApp({ name, organizationId });
         const [pgdata, ip] = yield Promise.all([
             makeVolume(name, region, volume_size_gb, process.env.PROJECT_REF),
-            (0, network_1.allocateIpAddress)({
+            exports.fly.Network.allocateIpAddress({
                 appId: name,
                 type: network_1.AddressType.v4
             }),
-            (0, network_1.allocateIpAddress)({
+            exports.fly.Network.allocateIpAddress({
                 appId: name,
                 type: network_1.AddressType.v6
             }),
-            (0, secret_1.setSecrets)({
+            exports.fly.Secret.setSecrets({
                 appId: name,
                 secrets: Object.entries(secrets)
                     .filter(([, value]) => value)
@@ -282,391 +171,11 @@ function deployInfrastructure({ name, region, volume_size_gb, size, image, secre
                 }
             ];
         }
-        const machine = yield (0, machine_1.createMachine)(req);
+        const machine = yield exports.fly.Machine.createMachine(req);
         return { machine, ip, volume: pgdata.volume };
     });
 }
 exports.deployInfrastructure = deployInfrastructure;
-
-
-/***/ }),
-
-/***/ 2377:
-/***/ (function(__unused_webpack_module, exports, __nccwpck_require__) {
-
-"use strict";
-
-var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, generator) {
-    function adopt(value) { return value instanceof P ? value : new P(function (resolve) { resolve(value); }); }
-    return new (P || (P = Promise))(function (resolve, reject) {
-        function fulfilled(value) { try { step(generator.next(value)); } catch (e) { reject(e); } }
-        function rejected(value) { try { step(generator["throw"](value)); } catch (e) { reject(e); } }
-        function step(result) { result.done ? resolve(result.value) : adopt(result.value).then(fulfilled, rejected); }
-        step((generator = generator.apply(thisArg, _arguments || [])).next());
-    });
-};
-var __importDefault = (this && this.__importDefault) || function (mod) {
-    return (mod && mod.__esModule) ? mod : { "default": mod };
-};
-Object.defineProperty(exports, "__esModule", ({ value: true }));
-exports.listMachine = exports.startMachine = exports.stopMachine = exports.deleteMachine = exports.createMachine = exports.FLY_API_HOSTNAME = exports.ConnectionHandler = void 0;
-const cross_fetch_1 = __importDefault(__nccwpck_require__(9805));
-var ConnectionHandler;
-(function (ConnectionHandler) {
-    // Convert TLS connection to unencrypted TCP
-    ConnectionHandler["TLS"] = "tls";
-    // Handle TLS for PostgreSQL connections
-    ConnectionHandler["PG_TLS"] = "pg_tls";
-    // Convert TCP connection to HTTP
-    ConnectionHandler["HTTP"] = "http";
-    // Wrap TCP connection in PROXY protocol
-    ConnectionHandler["PROXY_PROTO"] = "proxy_proto";
-})(ConnectionHandler = exports.ConnectionHandler || (exports.ConnectionHandler = {}));
-exports.FLY_API_HOSTNAME = process.env.FLY_API_HOSTNAME || 'https://api.machines.dev';
-const createMachine = (payload) => __awaiter(void 0, void 0, void 0, function* () {
-    const token = process.env.FLY_API_TOKEN;
-    const resp = yield (0, cross_fetch_1.default)(`${exports.FLY_API_HOSTNAME}/v1/apps/${payload.name}/machines`, {
-        method: 'POST',
-        headers: {
-            Authorization: `Bearer ${token}`,
-            'Content-Type': 'application/json'
-        },
-        body: JSON.stringify(payload)
-    });
-    const text = yield resp.text();
-    if (!resp.ok) {
-        throw new Error(`${resp.status}: ${text}`);
-    }
-    return JSON.parse(text);
-});
-exports.createMachine = createMachine;
-const deleteMachine = (payload) => __awaiter(void 0, void 0, void 0, function* () {
-    const token = process.env.FLY_API_TOKEN;
-    const resp = yield (0, cross_fetch_1.default)(`${exports.FLY_API_HOSTNAME}/v1/apps/${payload.appId}/machines/${payload.machineId}`, {
-        method: 'DELETE',
-        headers: {
-            Authorization: `Bearer ${token}`,
-            'Content-Type': 'application/json'
-        },
-        body: JSON.stringify(payload)
-    });
-    const text = yield resp.text();
-    if (!resp.ok) {
-        throw new Error(`${resp.status}: ${text}`);
-    }
-    return JSON.parse(text);
-});
-exports.deleteMachine = deleteMachine;
-const stopMachine = (payload) => __awaiter(void 0, void 0, void 0, function* () {
-    const token = process.env.FLY_API_TOKEN;
-    const resp = yield (0, cross_fetch_1.default)(`${exports.FLY_API_HOSTNAME}/v1/apps/${payload.appId}/machines/${payload.machineId}/stop`, {
-        method: 'POST',
-        headers: {
-            Authorization: `Bearer ${token}`,
-            'Content-Type': 'application/json'
-        },
-        body: JSON.stringify(Object.assign({ signal: 'SIGTERM' }, payload))
-    });
-    const text = yield resp.text();
-    if (!resp.ok) {
-        throw new Error(`${resp.status}: ${text}`);
-    }
-    return JSON.parse(text);
-});
-exports.stopMachine = stopMachine;
-const startMachine = (payload) => __awaiter(void 0, void 0, void 0, function* () {
-    const token = process.env.FLY_API_TOKEN;
-    const resp = yield (0, cross_fetch_1.default)(`${exports.FLY_API_HOSTNAME}/v1/apps/${payload.appId}/machines/${payload.machineId}/start`, {
-        method: 'POST',
-        headers: {
-            Authorization: `Bearer ${token}`,
-            'Content-Type': 'application/json'
-        },
-        body: JSON.stringify(payload)
-    });
-    const text = yield resp.text();
-    if (!resp.ok) {
-        throw new Error(`${resp.status}: ${text}`);
-    }
-    return JSON.parse(text);
-});
-exports.startMachine = startMachine;
-const listMachine = (appId) => __awaiter(void 0, void 0, void 0, function* () {
-    const token = process.env.FLY_API_TOKEN;
-    const resp = yield (0, cross_fetch_1.default)(`${exports.FLY_API_HOSTNAME}/v1/apps/${appId}/machines`, {
-        method: 'GET',
-        headers: {
-            Authorization: `Bearer ${token}`,
-            'Content-Type': 'application/json'
-        }
-    });
-    const text = yield resp.text();
-    if (!resp.ok) {
-        throw new Error(`${resp.status}: ${text}`);
-    }
-    return JSON.parse(text);
-});
-exports.listMachine = listMachine;
-
-
-/***/ }),
-
-/***/ 8796:
-/***/ (function(__unused_webpack_module, exports, __nccwpck_require__) {
-
-"use strict";
-
-var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, generator) {
-    function adopt(value) { return value instanceof P ? value : new P(function (resolve) { resolve(value); }); }
-    return new (P || (P = Promise))(function (resolve, reject) {
-        function fulfilled(value) { try { step(generator.next(value)); } catch (e) { reject(e); } }
-        function rejected(value) { try { step(generator["throw"](value)); } catch (e) { reject(e); } }
-        function step(result) { result.done ? resolve(result.value) : adopt(result.value).then(fulfilled, rejected); }
-        step((generator = generator.apply(thisArg, _arguments || [])).next());
-    });
-};
-Object.defineProperty(exports, "__esModule", ({ value: true }));
-exports.releaseIpAddress = exports.allocateIpAddress = exports.AddressType = void 0;
-const client_1 = __nccwpck_require__(6334);
-var AddressType;
-(function (AddressType) {
-    AddressType["v4"] = "v4";
-    AddressType["v6"] = "v6";
-    AddressType["private_v6"] = "private_v6";
-    AddressType["shared_v4"] = "shared_v4";
-})(AddressType = exports.AddressType || (exports.AddressType = {}));
-const allocateIpAddressQuery = `mutation($input: AllocateIPAddressInput!) {
-  allocateIpAddress(input: $input) {
-    ipAddress {
-      id
-      address
-      type
-      region
-      createdAt
-    }
-  }
-}`;
-// Ref: https://github.com/superfly/flyctl/blob/master/api/resource_ip_addresses.go#L79
-const allocateIpAddress = (input) => __awaiter(void 0, void 0, void 0, function* () {
-    return yield (0, client_1.gqlPostOrThrow)({
-        query: allocateIpAddressQuery,
-        variables: { input }
-    });
-});
-exports.allocateIpAddress = allocateIpAddress;
-const releaseIpAddressQuery = `mutation($input: ReleaseIPAddressInput!) {
-  releaseIpAddress(input: $input) {
-    app {
-      name
-    }
-  }
-}`;
-const releaseIpAddress = (input) => __awaiter(void 0, void 0, void 0, function* () {
-    return yield (0, client_1.gqlPostOrThrow)({
-        query: releaseIpAddressQuery,
-        variables: { input }
-    });
-});
-exports.releaseIpAddress = releaseIpAddress;
-
-
-/***/ }),
-
-/***/ 8723:
-/***/ (function(__unused_webpack_module, exports, __nccwpck_require__) {
-
-"use strict";
-
-var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, generator) {
-    function adopt(value) { return value instanceof P ? value : new P(function (resolve) { resolve(value); }); }
-    return new (P || (P = Promise))(function (resolve, reject) {
-        function fulfilled(value) { try { step(generator.next(value)); } catch (e) { reject(e); } }
-        function rejected(value) { try { step(generator["throw"](value)); } catch (e) { reject(e); } }
-        function step(result) { result.done ? resolve(result.value) : adopt(result.value).then(fulfilled, rejected); }
-        step((generator = generator.apply(thisArg, _arguments || [])).next());
-    });
-};
-Object.defineProperty(exports, "__esModule", ({ value: true }));
-exports.getOrganization = void 0;
-const client_1 = __nccwpck_require__(6334);
-const getOrganizationQuery = `query($slug: String!) {
-  organization(slug: $slug) {
-    id
-    slug
-    name
-    type
-    viewerRole
-  }
-}`;
-const getOrganization = (slug) => __awaiter(void 0, void 0, void 0, function* () {
-    return yield (0, client_1.gqlPostOrThrow)({
-        query: getOrganizationQuery,
-        variables: { slug }
-    });
-});
-exports.getOrganization = getOrganization;
-
-
-/***/ }),
-
-/***/ 8499:
-/***/ (function(__unused_webpack_module, exports, __nccwpck_require__) {
-
-"use strict";
-
-var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, generator) {
-    function adopt(value) { return value instanceof P ? value : new P(function (resolve) { resolve(value); }); }
-    return new (P || (P = Promise))(function (resolve, reject) {
-        function fulfilled(value) { try { step(generator.next(value)); } catch (e) { reject(e); } }
-        function rejected(value) { try { step(generator["throw"](value)); } catch (e) { reject(e); } }
-        function step(result) { result.done ? resolve(result.value) : adopt(result.value).then(fulfilled, rejected); }
-        step((generator = generator.apply(thisArg, _arguments || [])).next());
-    });
-};
-Object.defineProperty(exports, "__esModule", ({ value: true }));
-exports.unsetSecrets = exports.setSecrets = void 0;
-const client_1 = __nccwpck_require__(6334);
-const setSecretsQuery = `mutation($input: SetSecretsInput!) {
-  setSecrets(input: $input) {
-    release {
-      id
-      version
-      reason
-      description
-      user {
-        id
-        email
-        name
-      }
-      evaluationId
-      createdAt
-    }
-  }
-}`;
-// Ref: https://github.com/superfly/flyctl/blob/master/api/resource_secrets.go#L5
-const setSecrets = (input) => __awaiter(void 0, void 0, void 0, function* () {
-    return yield (0, client_1.gqlPostOrThrow)({
-        query: setSecretsQuery,
-        variables: { input }
-    });
-});
-exports.setSecrets = setSecrets;
-const unsetSecretsQuery = `mutation($input: UnsetSecretsInput!) {
-  unsetSecrets(input: $input) {
-    release {
-      id
-      version
-      reason
-      description
-      user {
-        id
-        email
-        name
-      }
-      evaluationId
-      createdAt
-    }
-  }
-}`;
-const unsetSecrets = (input) => __awaiter(void 0, void 0, void 0, function* () {
-    return yield (0, client_1.gqlPostOrThrow)({
-        query: unsetSecretsQuery,
-        variables: { input }
-    });
-});
-exports.unsetSecrets = unsetSecrets;
-
-
-/***/ }),
-
-/***/ 4881:
-/***/ (function(__unused_webpack_module, exports, __nccwpck_require__) {
-
-"use strict";
-
-var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, generator) {
-    function adopt(value) { return value instanceof P ? value : new P(function (resolve) { resolve(value); }); }
-    return new (P || (P = Promise))(function (resolve, reject) {
-        function fulfilled(value) { try { step(generator.next(value)); } catch (e) { reject(e); } }
-        function rejected(value) { try { step(generator["throw"](value)); } catch (e) { reject(e); } }
-        function step(result) { result.done ? resolve(result.value) : adopt(result.value).then(fulfilled, rejected); }
-        step((generator = generator.apply(thisArg, _arguments || [])).next());
-    });
-};
-Object.defineProperty(exports, "__esModule", ({ value: true }));
-exports.forkVolume = exports.deleteVolume = exports.createVolume = void 0;
-const client_1 = __nccwpck_require__(6334);
-const createVolumeQuery = `mutation($input: CreateVolumeInput!) {
-  createVolume(input: $input) {
-    app {
-      name
-    }
-    volume {
-      id
-      name
-      app{
-        name
-      }
-      region
-      sizeGb
-      encrypted
-      createdAt
-      host {
-        id
-      }
-    }
-  }
-}`;
-// Ref: https://github.com/superfly/flyctl/blob/master/api/resource_volumes.go#L52
-const createVolume = (input) => __awaiter(void 0, void 0, void 0, function* () {
-    return yield (0, client_1.gqlPostOrThrow)({
-        query: createVolumeQuery,
-        variables: { input }
-    });
-});
-exports.createVolume = createVolume;
-const deleteVolumeQuery = `mutation($input: DeleteVolumeInput!) {
-  deleteVolume(input: $input) {
-    app {
-      name
-    }
-  }
-}`;
-const deleteVolume = (input) => __awaiter(void 0, void 0, void 0, function* () {
-    return yield (0, client_1.gqlPostOrThrow)({
-        query: deleteVolumeQuery,
-        variables: { input }
-    });
-});
-exports.deleteVolume = deleteVolume;
-const forkVolumeQuery = `mutation($input: ForkVolumeInput!) {
-  forkVolume(input: $input) {
-    app {
-      name
-    }
-    volume {
-      id
-      name
-      app{
-        name
-      }
-      region
-      sizeGb
-      encrypted
-      createdAt
-      host {
-        id
-      }
-    }
-  }
-}`;
-const forkVolume = (input) => __awaiter(void 0, void 0, void 0, function* () {
-    return yield (0, client_1.gqlPostOrThrow)({
-        query: forkVolumeQuery,
-        variables: { input }
-    });
-});
-exports.forkVolume = forkVolume;
 
 
 /***/ }),
@@ -714,8 +223,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 const core = __importStar(__nccwpck_require__(2186));
 const jsonwebtoken_1 = __importDefault(__nccwpck_require__(7486));
-const app_1 = __nccwpck_require__(7096);
-const deploy_1 = __nccwpck_require__(7344);
+const deploy_1 = __nccwpck_require__(7538);
 const generate_jwt = (jwt_secret, ref) => {
     const options = { expiresIn: '10y' };
     const admin_jwt = { iss: 'supabase', ref, role: 'supabase_admin' };
@@ -746,9 +254,11 @@ function run() {
             const ref = getProjectRef(process.env.NEXT_PUBLIC_SUPABASE_URL).toLowerCase();
             console.log('Cleaning up existing deployments:', ref);
             try {
-                yield (0, app_1.deleteApp)(ref);
+                yield deploy_1.fly.App.deleteApp(ref);
             }
-            catch (error) { }
+            catch (error) {
+                // App not found
+            }
             console.log('Generating JWT tokens');
             const jwt_secret = process.env.SUPABASE_AUTH_JWT_SECRET ||
                 'super-secret-jwt-token-with-at-least-32-characters-long';
@@ -779,7 +289,7 @@ function run() {
             }
             catch (error) {
                 console.log(error);
-                yield (0, app_1.deleteApp)(ref);
+                yield deploy_1.fly.App.deleteApp(ref);
                 throw error;
             }
             // Dumps action output
@@ -2874,6 +2384,596 @@ function getParamBytesForAlg(alg) {
 }
 
 module.exports = getParamBytesForAlg;
+
+
+/***/ }),
+
+/***/ 32:
+/***/ (function(__unused_webpack_module, exports, __nccwpck_require__) {
+
+"use strict";
+
+var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, generator) {
+    function adopt(value) { return value instanceof P ? value : new P(function (resolve) { resolve(value); }); }
+    return new (P || (P = Promise))(function (resolve, reject) {
+        function fulfilled(value) { try { step(generator.next(value)); } catch (e) { reject(e); } }
+        function rejected(value) { try { step(generator["throw"](value)); } catch (e) { reject(e); } }
+        function step(result) { result.done ? resolve(result.value) : adopt(result.value).then(fulfilled, rejected); }
+        step((generator = generator.apply(thisArg, _arguments || [])).next());
+    });
+};
+var __importDefault = (this && this.__importDefault) || function (mod) {
+    return (mod && mod.__esModule) ? mod : { "default": mod };
+};
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.FLY_API_HOSTNAME = exports.FLY_API_GRAPHQL = void 0;
+const cross_fetch_1 = __importDefault(__nccwpck_require__(9805));
+const app_1 = __nccwpck_require__(239);
+const machine_1 = __nccwpck_require__(2562);
+const network_1 = __nccwpck_require__(9059);
+const organization_1 = __nccwpck_require__(7917);
+const secret_1 = __nccwpck_require__(8261);
+const volume_1 = __nccwpck_require__(4936);
+exports.FLY_API_GRAPHQL = 'https://api.fly.io';
+exports.FLY_API_HOSTNAME = 'https://api.machines.dev';
+class Client {
+    constructor(apiKey, { graphqlUrl, apiUrl } = {}) {
+        if (!apiKey) {
+            throw new Error('Fly API Key is required');
+        }
+        this.graphqlUrl = graphqlUrl || exports.FLY_API_GRAPHQL;
+        this.apiUrl = apiUrl || exports.FLY_API_HOSTNAME;
+        this.apiKey = apiKey;
+        this.App = new app_1.App(this);
+        this.Machine = new machine_1.Machine(this);
+        this.Network = new network_1.Network(this);
+        this.Organization = new organization_1.Organization(this);
+        this.Secret = new secret_1.Secret(this);
+        this.Volume = new volume_1.Volume(this);
+    }
+    getApiKey() {
+        return this.apiKey;
+    }
+    getApiUrl() {
+        return this.apiUrl;
+    }
+    getGraphqlUrl() {
+        return this.graphqlUrl;
+    }
+    gqlPostOrThrow(payload) {
+        return __awaiter(this, void 0, void 0, function* () {
+            const token = process.env.FLY_API_TOKEN;
+            const resp = yield (0, cross_fetch_1.default)(`${exports.FLY_API_GRAPHQL}/graphql`, {
+                method: 'POST',
+                headers: {
+                    Authorization: `Bearer ${token}`,
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify(payload),
+            });
+            const text = yield resp.text();
+            if (!resp.ok) {
+                throw new Error(`${resp.status}: ${text}`);
+            }
+            const { data, errors } = JSON.parse(text);
+            if (errors) {
+                throw new Error(JSON.stringify(errors));
+            }
+            return data;
+        });
+    }
+}
+exports["default"] = Client;
+
+
+/***/ }),
+
+/***/ 239:
+/***/ (function(__unused_webpack_module, exports) {
+
+"use strict";
+
+var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, generator) {
+    function adopt(value) { return value instanceof P ? value : new P(function (resolve) { resolve(value); }); }
+    return new (P || (P = Promise))(function (resolve, reject) {
+        function fulfilled(value) { try { step(generator.next(value)); } catch (e) { reject(e); } }
+        function rejected(value) { try { step(generator["throw"](value)); } catch (e) { reject(e); } }
+        function step(result) { result.done ? resolve(result.value) : adopt(result.value).then(fulfilled, rejected); }
+        step((generator = generator.apply(thisArg, _arguments || [])).next());
+    });
+};
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.App = void 0;
+const createAppQuery = `mutation($input: CreateAppInput!) {
+  createApp(input: $input) {
+    app {
+      id
+      name
+      organization {
+        slug
+      }
+      config {
+        definition
+      }
+      regions {
+        name
+        code
+      }
+    }
+  }
+}`;
+const deleteAppQuery = `mutation($appId: ID!) {
+  deleteApp(appId: $appId) {
+    organization {
+      id
+    }
+  }
+}`;
+class App {
+    constructor(client) {
+        this.client = client;
+    }
+    deleteApp(appId) {
+        return __awaiter(this, void 0, void 0, function* () {
+            return yield this.client.gqlPostOrThrow({
+                query: deleteAppQuery,
+                variables: { appId },
+            });
+        });
+    }
+    // Ref: https://github.com/superfly/flyctl/blob/master/api/resource_apps.go#L329
+    createApp(input) {
+        return __awaiter(this, void 0, void 0, function* () {
+            return yield this.client.gqlPostOrThrow({
+                query: createAppQuery,
+                variables: { input },
+            });
+        });
+    }
+}
+exports.App = App;
+
+
+/***/ }),
+
+/***/ 2562:
+/***/ (function(__unused_webpack_module, exports, __nccwpck_require__) {
+
+"use strict";
+
+var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, generator) {
+    function adopt(value) { return value instanceof P ? value : new P(function (resolve) { resolve(value); }); }
+    return new (P || (P = Promise))(function (resolve, reject) {
+        function fulfilled(value) { try { step(generator.next(value)); } catch (e) { reject(e); } }
+        function rejected(value) { try { step(generator["throw"](value)); } catch (e) { reject(e); } }
+        function step(result) { result.done ? resolve(result.value) : adopt(result.value).then(fulfilled, rejected); }
+        step((generator = generator.apply(thisArg, _arguments || [])).next());
+    });
+};
+var __importDefault = (this && this.__importDefault) || function (mod) {
+    return (mod && mod.__esModule) ? mod : { "default": mod };
+};
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.Machine = exports.FLY_API_HOSTNAME = exports.ConnectionHandler = void 0;
+const cross_fetch_1 = __importDefault(__nccwpck_require__(9805));
+var ConnectionHandler;
+(function (ConnectionHandler) {
+    // Convert TLS connection to unencrypted TCP
+    ConnectionHandler["TLS"] = "tls";
+    // Handle TLS for PostgreSQL connections
+    ConnectionHandler["PG_TLS"] = "pg_tls";
+    // Convert TCP connection to HTTP
+    ConnectionHandler["HTTP"] = "http";
+    // Wrap TCP connection in PROXY protocol
+    ConnectionHandler["PROXY_PROTO"] = "proxy_proto";
+})(ConnectionHandler = exports.ConnectionHandler || (exports.ConnectionHandler = {}));
+exports.FLY_API_HOSTNAME = process.env.FLY_API_HOSTNAME || 'https://api.machines.dev';
+class Machine {
+    constructor(client) {
+        this.client = client;
+    }
+    listMachines(appId) {
+        return __awaiter(this, void 0, void 0, function* () {
+            const token = this.client.getApiKey();
+            const url = this.client.getApiUrl();
+            const resp = yield (0, cross_fetch_1.default)(`${url}/v1/apps/${appId}/machines`, {
+                method: 'GET',
+                headers: {
+                    Authorization: `Bearer ${token}`,
+                    'Content-Type': 'application/json',
+                },
+            });
+            const text = yield resp.text();
+            if (!resp.ok) {
+                throw new Error(`${resp.status}: ${text}`);
+            }
+            return JSON.parse(text);
+        });
+    }
+    startMachine(payload) {
+        return __awaiter(this, void 0, void 0, function* () {
+            const token = this.client.getApiKey();
+            const url = this.client.getApiUrl();
+            const resp = yield (0, cross_fetch_1.default)(`${url}/v1/apps/${payload.appId}/machines/${payload.machineId}/start`, {
+                method: 'POST',
+                headers: {
+                    Authorization: `Bearer ${token}`,
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify(payload),
+            });
+            const text = yield resp.text();
+            if (!resp.ok) {
+                throw new Error(`${resp.status}: ${text}`);
+            }
+            return JSON.parse(text);
+        });
+    }
+    stopMachine(payload) {
+        return __awaiter(this, void 0, void 0, function* () {
+            const token = this.client.getApiKey();
+            const url = this.client.getApiUrl();
+            const resp = yield (0, cross_fetch_1.default)(`${url}/v1/apps/${payload.appId}/machines/${payload.machineId}/stop`, {
+                method: 'POST',
+                headers: {
+                    Authorization: `Bearer ${token}`,
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify(Object.assign({ signal: 'SIGTERM' }, payload)),
+            });
+            const text = yield resp.text();
+            if (!resp.ok) {
+                throw new Error(`${resp.status}: ${text}`);
+            }
+            return JSON.parse(text);
+        });
+    }
+    deleteMachine(payload) {
+        return __awaiter(this, void 0, void 0, function* () {
+            const token = this.client.getApiKey();
+            const url = this.client.getApiUrl();
+            const resp = yield (0, cross_fetch_1.default)(`${url}/v1/apps/${payload.appId}/machines/${payload.machineId}`, {
+                method: 'DELETE',
+                headers: {
+                    Authorization: `Bearer ${token}`,
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify(payload),
+            });
+            const text = yield resp.text();
+            if (!resp.ok) {
+                throw new Error(`${resp.status}: ${text}`);
+            }
+            return JSON.parse(text);
+        });
+    }
+    createMachine(payload) {
+        return __awaiter(this, void 0, void 0, function* () {
+            const token = this.client.getApiKey();
+            const url = this.client.getApiUrl();
+            const resp = yield (0, cross_fetch_1.default)(`${url}/v1/apps/${payload.name}/machines`, {
+                method: 'POST',
+                headers: {
+                    Authorization: `Bearer ${token}`,
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify(payload),
+            });
+            const text = yield resp.text();
+            if (!resp.ok) {
+                throw new Error(`${resp.status}: ${text}`);
+            }
+            return JSON.parse(text);
+        });
+    }
+}
+exports.Machine = Machine;
+
+
+/***/ }),
+
+/***/ 9059:
+/***/ (function(__unused_webpack_module, exports) {
+
+"use strict";
+
+var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, generator) {
+    function adopt(value) { return value instanceof P ? value : new P(function (resolve) { resolve(value); }); }
+    return new (P || (P = Promise))(function (resolve, reject) {
+        function fulfilled(value) { try { step(generator.next(value)); } catch (e) { reject(e); } }
+        function rejected(value) { try { step(generator["throw"](value)); } catch (e) { reject(e); } }
+        function step(result) { result.done ? resolve(result.value) : adopt(result.value).then(fulfilled, rejected); }
+        step((generator = generator.apply(thisArg, _arguments || [])).next());
+    });
+};
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.Network = exports.AddressType = void 0;
+var AddressType;
+(function (AddressType) {
+    AddressType["v4"] = "v4";
+    AddressType["v6"] = "v6";
+    AddressType["private_v6"] = "private_v6";
+    AddressType["shared_v4"] = "shared_v4";
+})(AddressType = exports.AddressType || (exports.AddressType = {}));
+const allocateIpAddressQuery = `mutation($input: AllocateIPAddressInput!) {
+  allocateIpAddress(input: $input) {
+    ipAddress {
+      id
+      address
+      type
+      region
+      createdAt
+    }
+  }
+}`;
+const releaseIpAddressQuery = `mutation($input: ReleaseIPAddressInput!) {
+  releaseIpAddress(input: $input) {
+    app {
+      name
+    }
+  }
+}`;
+class Network {
+    constructor(client) {
+        this.client = client;
+    }
+    // Ref: https://github.com/superfly/flyctl/blob/master/api/resource_ip_addresses.go#L79
+    allocateIpAddress(input) {
+        return __awaiter(this, void 0, void 0, function* () {
+            return this.client.gqlPostOrThrow({
+                query: allocateIpAddressQuery,
+                variables: { input },
+            });
+        });
+    }
+    releaseIpAddress(input) {
+        return __awaiter(this, void 0, void 0, function* () {
+            return this.client.gqlPostOrThrow({
+                query: releaseIpAddressQuery,
+                variables: { input },
+            });
+        });
+    }
+}
+exports.Network = Network;
+
+
+/***/ }),
+
+/***/ 7917:
+/***/ (function(__unused_webpack_module, exports) {
+
+"use strict";
+
+var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, generator) {
+    function adopt(value) { return value instanceof P ? value : new P(function (resolve) { resolve(value); }); }
+    return new (P || (P = Promise))(function (resolve, reject) {
+        function fulfilled(value) { try { step(generator.next(value)); } catch (e) { reject(e); } }
+        function rejected(value) { try { step(generator["throw"](value)); } catch (e) { reject(e); } }
+        function step(result) { result.done ? resolve(result.value) : adopt(result.value).then(fulfilled, rejected); }
+        step((generator = generator.apply(thisArg, _arguments || [])).next());
+    });
+};
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.Organization = void 0;
+const getOrganizationQuery = `query($slug: String!) {
+  organization(slug: $slug) {
+    id
+    slug
+    name
+    type
+    viewerRole
+  }
+}`;
+class Organization {
+    constructor(client) {
+        this.client = client;
+    }
+    getOrganization(slug) {
+        return __awaiter(this, void 0, void 0, function* () {
+            return this.client.gqlPostOrThrow({
+                query: getOrganizationQuery,
+                variables: { slug },
+            });
+        });
+    }
+}
+exports.Organization = Organization;
+
+
+/***/ }),
+
+/***/ 8261:
+/***/ (function(__unused_webpack_module, exports) {
+
+"use strict";
+
+var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, generator) {
+    function adopt(value) { return value instanceof P ? value : new P(function (resolve) { resolve(value); }); }
+    return new (P || (P = Promise))(function (resolve, reject) {
+        function fulfilled(value) { try { step(generator.next(value)); } catch (e) { reject(e); } }
+        function rejected(value) { try { step(generator["throw"](value)); } catch (e) { reject(e); } }
+        function step(result) { result.done ? resolve(result.value) : adopt(result.value).then(fulfilled, rejected); }
+        step((generator = generator.apply(thisArg, _arguments || [])).next());
+    });
+};
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.Secret = void 0;
+const setSecretsQuery = `mutation($input: SetSecretsInput!) {
+  setSecrets(input: $input) {
+    release {
+      id
+      version
+      reason
+      description
+      user {
+        id
+        email
+        name
+      }
+      evaluationId
+      createdAt
+    }
+  }
+}`;
+const unsetSecretsQuery = `mutation($input: UnsetSecretsInput!) {
+  unsetSecrets(input: $input) {
+    release {
+      id
+      version
+      reason
+      description
+      user {
+        id
+        email
+        name
+      }
+      evaluationId
+      createdAt
+    }
+  }
+}`;
+class Secret {
+    constructor(client) {
+        this.client = client;
+    }
+    setSecrets(input) {
+        return __awaiter(this, void 0, void 0, function* () {
+            return yield this.client.gqlPostOrThrow({
+                query: setSecretsQuery,
+                variables: { input },
+            });
+        });
+    }
+    unsetSecrets(input) {
+        return __awaiter(this, void 0, void 0, function* () {
+            return yield this.client.gqlPostOrThrow({
+                query: unsetSecretsQuery,
+                variables: { input },
+            });
+        });
+    }
+}
+exports.Secret = Secret;
+
+
+/***/ }),
+
+/***/ 4936:
+/***/ (function(__unused_webpack_module, exports) {
+
+"use strict";
+
+var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, generator) {
+    function adopt(value) { return value instanceof P ? value : new P(function (resolve) { resolve(value); }); }
+    return new (P || (P = Promise))(function (resolve, reject) {
+        function fulfilled(value) { try { step(generator.next(value)); } catch (e) { reject(e); } }
+        function rejected(value) { try { step(generator["throw"](value)); } catch (e) { reject(e); } }
+        function step(result) { result.done ? resolve(result.value) : adopt(result.value).then(fulfilled, rejected); }
+        step((generator = generator.apply(thisArg, _arguments || [])).next());
+    });
+};
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.Volume = void 0;
+const createVolumeQuery = `mutation($input: CreateVolumeInput!) {
+  createVolume(input: $input) {
+    app {
+      name
+    }
+    volume {
+      id
+      name
+      app{
+        name
+      }
+      region
+      sizeGb
+      encrypted
+      createdAt
+      host {
+        id
+      }
+    }
+  }
+}`;
+const deleteVolumeQuery = `mutation($input: DeleteVolumeInput!) {
+  deleteVolume(input: $input) {
+    app {
+      name
+    }
+  }
+}`;
+const forkVolumeQuery = `mutation($input: ForkVolumeInput!) {
+  forkVolume(input: $input) {
+    app {
+      name
+    }
+    volume {
+      id
+      name
+      app{
+        name
+      }
+      region
+      sizeGb
+      encrypted
+      createdAt
+      host {
+        id
+      }
+    }
+  }
+}`;
+class Volume {
+    constructor(client) {
+        this.client = client;
+    }
+    // Ref: https://github.com/superfly/flyctl/blob/master/api/resource_volumes.go#L52
+    createVolume(input) {
+        return __awaiter(this, void 0, void 0, function* () {
+            return yield this.client.gqlPostOrThrow({
+                query: createVolumeQuery,
+                variables: { input },
+            });
+        });
+    }
+    deleteVolume(input) {
+        return __awaiter(this, void 0, void 0, function* () {
+            return yield this.client.gqlPostOrThrow({
+                query: deleteVolumeQuery,
+                variables: { input },
+            });
+        });
+    }
+    forkVolume(input) {
+        return __awaiter(this, void 0, void 0, function* () {
+            return this.client.gqlPostOrThrow({
+                query: forkVolumeQuery,
+                variables: { input },
+            });
+        });
+    }
+}
+exports.Volume = Volume;
+
+
+/***/ }),
+
+/***/ 9907:
+/***/ (function(__unused_webpack_module, exports, __nccwpck_require__) {
+
+"use strict";
+
+var __importDefault = (this && this.__importDefault) || function (mod) {
+    return (mod && mod.__esModule) ? mod : { "default": mod };
+};
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.createClient = void 0;
+const client_1 = __importDefault(__nccwpck_require__(32));
+function createClient(API_TOKEN) {
+    return new client_1.default(API_TOKEN);
+}
+exports.createClient = createClient;
 
 
 /***/ }),
@@ -23033,6 +23133,20 @@ const isDomainOrSubdomain = function isDomainOrSubdomain(destination, original) 
 };
 
 /**
+ * isSameProtocol reports whether the two provided URLs use the same protocol.
+ *
+ * Both domains must already be in canonical form.
+ * @param {string|URL} original
+ * @param {string|URL} destination
+ */
+const isSameProtocol = function isSameProtocol(destination, original) {
+	const orig = new URL$1(original).protocol;
+	const dest = new URL$1(destination).protocol;
+
+	return orig === dest;
+};
+
+/**
  * Fetch function
  *
  * @param   Mixed    url   Absolute url or Request instance
@@ -23063,7 +23177,7 @@ function fetch(url, opts) {
 			let error = new AbortError('The user aborted a request.');
 			reject(error);
 			if (request.body && request.body instanceof Stream.Readable) {
-				request.body.destroy(error);
+				destroyStream(request.body, error);
 			}
 			if (!response || !response.body) return;
 			response.body.emit('error', error);
@@ -23104,8 +23218,42 @@ function fetch(url, opts) {
 
 		req.on('error', function (err) {
 			reject(new FetchError(`request to ${request.url} failed, reason: ${err.message}`, 'system', err));
+
+			if (response && response.body) {
+				destroyStream(response.body, err);
+			}
+
 			finalize();
 		});
+
+		fixResponseChunkedTransferBadEnding(req, function (err) {
+			if (signal && signal.aborted) {
+				return;
+			}
+
+			if (response && response.body) {
+				destroyStream(response.body, err);
+			}
+		});
+
+		/* c8 ignore next 18 */
+		if (parseInt(process.version.substring(1)) < 14) {
+			// Before Node.js 14, pipeline() does not fully support async iterators and does not always
+			// properly handle when the socket close/end events are out of order.
+			req.on('socket', function (s) {
+				s.addListener('close', function (hadError) {
+					// if a data listener is still present we didn't end cleanly
+					const hasDataListener = s.listenerCount('data') > 0;
+
+					// if end happened before close but the socket didn't emit an error, do it now
+					if (response && hasDataListener && !hadError && !(signal && signal.aborted)) {
+						const err = new Error('Premature close');
+						err.code = 'ERR_STREAM_PREMATURE_CLOSE';
+						response.body.emit('error', err);
+					}
+				});
+			});
+		}
 
 		req.on('response', function (res) {
 			clearTimeout(reqTimeout);
@@ -23178,7 +23326,7 @@ function fetch(url, opts) {
 							size: request.size
 						};
 
-						if (!isDomainOrSubdomain(request.url, locationURL)) {
+						if (!isDomainOrSubdomain(request.url, locationURL) || !isSameProtocol(request.url, locationURL)) {
 							for (const name of ['authorization', 'www-authenticate', 'cookie', 'cookie2']) {
 								requestOpts.headers.delete(name);
 							}
@@ -23271,6 +23419,13 @@ function fetch(url, opts) {
 					response = new Response(body, response_options);
 					resolve(response);
 				});
+				raw.on('end', function () {
+					// some old IIS servers return zero-length OK deflate responses, so 'data' is never emitted.
+					if (!response) {
+						response = new Response(body, response_options);
+						resolve(response);
+					}
+				});
 				return;
 			}
 
@@ -23290,6 +23445,41 @@ function fetch(url, opts) {
 		writeToStream(req, request);
 	});
 }
+function fixResponseChunkedTransferBadEnding(request, errorCallback) {
+	let socket;
+
+	request.on('socket', function (s) {
+		socket = s;
+	});
+
+	request.on('response', function (response) {
+		const headers = response.headers;
+
+		if (headers['transfer-encoding'] === 'chunked' && !headers['content-length']) {
+			response.once('close', function (hadError) {
+				// if a data listener is still present we didn't end cleanly
+				const hasDataListener = socket.listenerCount('data') > 0;
+
+				if (hasDataListener && !hadError) {
+					const err = new Error('Premature close');
+					err.code = 'ERR_STREAM_PREMATURE_CLOSE';
+					errorCallback(err);
+				}
+			});
+		}
+	});
+}
+
+function destroyStream(stream, err) {
+	if (stream.destroy) {
+		stream.destroy(err);
+	} else {
+		// node < 8
+		stream.emit('error', err);
+		stream.end();
+	}
+}
+
 /**
  * Redirect code matching
  *
@@ -24087,7 +24277,7 @@ class SemVer {
         version = version.version
       }
     } else if (typeof version !== 'string') {
-      throw new TypeError(`Invalid Version: ${(__nccwpck_require__(3837).inspect)(version)}`)
+      throw new TypeError(`Invalid version. Must be a string. Got type "${typeof version}".`)
     }
 
     if (version.length > MAX_LENGTH) {

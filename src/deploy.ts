@@ -1,19 +1,13 @@
-import {createApp} from './app'
+import {createClient} from 'fly-admin'
 import {
   ConnectionHandler,
   CreateMachineRequest,
-  MachineResponse,
-  createMachine,
-  listMachine
-} from './machine'
-import {
-  AddressType,
-  AllocateIPAddressOutput,
-  allocateIpAddress
-} from './network'
-import {getOrganization} from './organization'
-import {setSecrets} from './secret'
-import {VolumeResponse, createVolume, forkVolume} from './volume'
+  MachineResponse
+} from 'fly-admin/dist/lib/machine'
+import {AddressType, AllocateIPAddressOutput} from 'fly-admin/dist/lib/network'
+import {VolumeResponse} from 'fly-admin/dist/lib/volume'
+
+export const fly = createClient('FLY_API_TOKEN')
 
 export interface CommonConfig {
   name: string
@@ -50,7 +44,7 @@ export interface FlyConfigSecrets {
 }
 
 const resolveVolume = async (appId: string): Promise<string> => {
-  const machines = await listMachine(appId)
+  const machines = await fly.Machine.listMachines(appId)
   const mount = machines.flatMap(m => m.config.mounts)[0]
   if (!mount) {
     throw new Error(`Failed to resolve volume for app: ${appId}`)
@@ -67,7 +61,7 @@ const makeVolume = async (
   const volumeName = `${name.replace(/-/g, '_')}_pgdata`
   if (projectRef) {
     const source = await resolveVolume(projectRef)
-    const output = await forkVolume({
+    const output = await fly.Volume.forkVolume({
       appId: name,
       sourceVolId: source,
       name: volumeName,
@@ -75,7 +69,7 @@ const makeVolume = async (
     })
     return output.forkVolume
   }
-  const output = await createVolume({
+  const output = await fly.Volume.createVolume({
     appId: name,
     name: volumeName,
     sizeGb: volume_size_gb,
@@ -90,7 +84,7 @@ const resolveOrgId = async (): Promise<string> => {
     return orgId
   }
   const slug = process.env.FLY_ORGANIZATION_SLUG || 'personal'
-  const output = await getOrganization(slug)
+  const output = await fly.Organization.getOrganization(slug)
   return output.organization.id
 }
 
@@ -110,19 +104,19 @@ export async function deployInfrastructure({
 }> {
   const organizationId = await resolveOrgId()
   // Custom network is not supported by fly ssh: `${name}-network`
-  await createApp({name, organizationId})
+  await fly.App.createApp({name, organizationId})
 
   const [pgdata, ip] = await Promise.all([
     makeVolume(name, region, volume_size_gb, process.env.PROJECT_REF),
-    allocateIpAddress({
+    fly.Network.allocateIpAddress({
       appId: name,
       type: AddressType.v4
     }),
-    allocateIpAddress({
+    fly.Network.allocateIpAddress({
       appId: name,
       type: AddressType.v6
     }),
-    setSecrets({
+    fly.Secret.setSecrets({
       appId: name,
       secrets: Object.entries(secrets)
         .filter(([, value]) => value)
@@ -226,7 +220,7 @@ export async function deployInfrastructure({
     ]
   }
 
-  const machine = await createMachine(req)
+  const machine = await fly.Machine.createMachine(req)
 
   return {machine, ip, volume: pgdata.volume}
 }
