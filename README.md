@@ -9,7 +9,7 @@ This action deploys a Supabase Preview branch on Fly infrastructure.
 
 ## Usage
 
-Setup the `supabase` CLI:
+1. Setup the `supabase` CLI
 
 ```yaml
 steps:
@@ -21,6 +21,13 @@ steps:
     env:
       SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
   - uses: sweatybridge/fly-preview@v1
+```
+
+2. Connect locally to your preview branch
+
+```bash
+supabase link --project-ref <ref>
+supabase start --preview
 ```
 
 ## Inputs
