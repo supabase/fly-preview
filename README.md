@@ -18,7 +18,8 @@ steps:
   - uses: supabase/setup-cli@v1
     with:
       version: latest
-  - run: supabase gen keys --project-ref cimpzzikygouamvsjwxa --experimental | sed -E 's|^(.*)="(.*)"$|\1=\2|g' >> "$GITHUB_ENV"
+  # We use sed to replace quotes, ie. key="value", to avoid double escaping env var.
+  - run: supabase gen keys --project-ref <ref> --experimental | sed -E 's|^(.*)="(.*)"$|\1=\2|g' >> "$GITHUB_ENV"
     env:
       SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
   - uses: supabase/fly-preview@main

@@ -1,4 +1,4 @@
-import {createClient} from 'fly-admin'
+import Client from 'fly-admin/dist/client'
 import {
   ConnectionHandler,
   CreateMachineRequest,
@@ -6,8 +6,6 @@ import {
 } from 'fly-admin/dist/lib/machine'
 import {AddressType, AllocateIPAddressOutput} from 'fly-admin/dist/lib/network'
 import {VolumeResponse} from 'fly-admin/dist/lib/volume'
-
-export const fly = createClient('FLY_API_TOKEN')
 
 export interface CommonConfig {
   name: string
@@ -42,7 +40,7 @@ export interface FlyConfigSecrets {
   reporting_token?: string
 }
 
-const resolveVolume = async (appId: string): Promise<string> => {
+const resolveVolume = async (fly: Client, appId: string): Promise<string> => {
   const machines = await fly.Machine.listMachines(appId)
   const mount = machines.flatMap(m => m.config.mounts)[0]
   if (!mount) {
@@ -52,6 +50,7 @@ const resolveVolume = async (appId: string): Promise<string> => {
 }
 
 const makeVolume = async (
+  fly: Client,
   name: string,
   region: string,
   volume_size_gb: number,
@@ -59,7 +58,7 @@ const makeVolume = async (
 ): Promise<{volume: VolumeResponse}> => {
   const volumeName = `${name.replace(/-/g, '_')}_pgdata`
   if (projectRef) {
-    const source = await resolveVolume(projectRef)
+    const source = await resolveVolume(fly, projectRef)
     const output = await fly.Volume.forkVolume({
       appId: name,
       sourceVolId: source,
@@ -77,7 +76,7 @@ const makeVolume = async (
   return output.createVolume
 }
 
-const resolveOrgId = async (): Promise<string> => {
+const resolveOrgId = async (fly: Client): Promise<string> => {
   const orgId = process.env.FLY_ORGANIZATION_ID
   if (orgId) {
     return orgId
@@ -87,25 +86,20 @@ const resolveOrgId = async (): Promise<string> => {
   return output.organization.id
 }
 
-export async function deployInfrastructure({
-  name,
-  region,
-  volume_size_gb,
-  size,
-  image,
-  secrets,
-  env
-}: FlyConfig): Promise<{
+export async function deployInfrastructure(
+  fly: Client,
+  {name, region, volume_size_gb, size, image, secrets, env}: FlyConfig
+): Promise<{
   machine: MachineResponse
   ip: AllocateIPAddressOutput
   volume: VolumeResponse
 }> {
-  const organizationId = await resolveOrgId()
+  const organizationId = await resolveOrgId(fly)
   // Custom network is not supported by fly ssh: `${name}-network`
   await fly.App.createApp({name, organizationId})
 
   const [pgdata, ip] = await Promise.all([
-    makeVolume(name, region, volume_size_gb, process.env.PROJECT_REF),
+    makeVolume(fly, name, region, volume_size_gb, process.env.PROJECT_REF),
     fly.Network.allocateIpAddress({
       appId: name,
       type: AddressType.v4
@@ -134,9 +128,10 @@ export async function deployInfrastructure({
       size,
       env: {
         ...env,
-        PGDATA: '/mnt/postgresql/data',
+        PGDATA_REAL: '/data/pgdata', // actual dir under mount point, consistent with aws setup
+        PGDATA: '/var/lib/postgresql/data', // symlinked to actual dir under mount point
         SUPABASE_URL: `${API_URL}/system`,
-        INIT_PAYLOAD_PATH: '/mnt/postgresql/payload.tar.gz'
+        INIT_PAYLOAD_PATH: '/data/payload.tar.gz'
       },
       services: [
         {
@@ -146,13 +141,17 @@ export async function deployInfrastructure({
             }
           ],
           protocol: 'tcp',
-          internal_port: 5432
+          internal_port: 5432,
+          concurrency: {
+            type: 'connections',
+            soft_limit: 60,
+            hard_limit: 60
+          }
         },
         {
           ports: [
             {
-              port: 8085,
-              handlers: [ConnectionHandler.HTTP]
+              port: 8085
             }
           ],
           protocol: 'tcp',
@@ -162,7 +161,7 @@ export async function deployInfrastructure({
       mounts: [
         {
           volume: pgdata.volume.id,
-          path: '/mnt/postgresql'
+          path: '/data'
         }
       ],
       checks: {
