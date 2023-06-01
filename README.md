@@ -21,7 +21,7 @@ steps:
   - run: supabase gen keys --project-ref <ref> --experimental >> "$GITHUB_ENV"
     env:
       SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
-  - uses: sweatybridge/fly-preview@v1
+  - uses: supabase/fly-preview@main
 ```
 
 Connect locally to your preview branch
