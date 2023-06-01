@@ -88,7 +88,7 @@ function deployInfrastructure(fly, { name, region, volume_size_gb, size, image, 
             config: {
                 image,
                 size,
-                env: Object.assign(Object.assign({}, env), { PGDATA_REAL: '/data/pgdata', PGDATA: '/var/lib/postgresql/data', SUPABASE_URL: `${API_URL}/system`, INIT_PAYLOAD_PATH: '/data/payload.tar.gz' }),
+                env: Object.assign(Object.assign({}, env), { PGDATA: '/data/pgdata/data', SUPABASE_URL: `${API_URL}/system`, INIT_PAYLOAD_PATH: '/data/payload.tar.gz' }),
                 services: [
                     {
                         ports: [
@@ -266,7 +266,7 @@ function run() {
                 name: ref,
                 region: process.env.FLY_MACHINE_REGION || 'sin',
                 size: process.env.FLY_MACHINE_SIZE || 'shared-cpu-4x',
-                image: 'supabase/postgres:aio-15.1.0.87',
+                image: 'supabase/postgres:aio-15.1.0.91',
                 project_ref: ref,
                 volume_size_gb: 1,
                 secrets: {

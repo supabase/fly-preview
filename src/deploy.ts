@@ -128,8 +128,7 @@ export async function deployInfrastructure(
       size,
       env: {
         ...env,
-        PGDATA_REAL: '/data/pgdata', // actual dir under mount point, consistent with aws setup
-        PGDATA: '/var/lib/postgresql/data', // symlinked to actual dir under mount point
+        PGDATA: '/data/pgdata/data',
         SUPABASE_URL: `${API_URL}/system`,
         INIT_PAYLOAD_PATH: '/data/payload.tar.gz'
       },
