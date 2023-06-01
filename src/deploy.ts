@@ -20,7 +20,6 @@ export interface CommonConfig {
 export interface FlyConfig extends CommonConfig {
   project_ref: string
   volume_size_gb: number
-  db_only: boolean
   secrets: FlyConfigSecrets
   env: Record<string, string>
 }
@@ -95,8 +94,7 @@ export async function deployInfrastructure({
   size,
   image,
   secrets,
-  env,
-  db_only
+  env
 }: FlyConfig): Promise<{
   machine: MachineResponse
   ip: AllocateIPAddressOutput
@@ -183,42 +181,37 @@ export async function deployInfrastructure({
       }
     }
   }
-  if (db_only) {
-    req.config.size = 'shared-cpu-2x'
-    req.config.env = {...req.config.env, POSTGRES_ONLY: 'true'}
-  } else {
-    req.config.services = [
-      ...req.config.services,
-      {
-        ports: [
-          {
-            port: 80,
-            handlers: [ConnectionHandler.HTTP]
-          }
-        ],
-        protocol: 'tcp',
-        internal_port: 8000
-      },
-      {
-        ports: [
-          {
-            port: 443
-          }
-        ],
-        protocol: 'tcp',
-        internal_port: 8443
-      },
-      {
-        ports: [
-          {
-            port: 6543
-          }
-        ],
-        protocol: 'tcp',
-        internal_port: 6543
-      }
-    ]
-  }
+  req.config.services = [
+    ...req.config.services,
+    {
+      ports: [
+        {
+          port: 80,
+          handlers: [ConnectionHandler.HTTP]
+        }
+      ],
+      protocol: 'tcp',
+      internal_port: 8000
+    },
+    {
+      ports: [
+        {
+          port: 443
+        }
+      ],
+      protocol: 'tcp',
+      internal_port: 8443
+    },
+    {
+      ports: [
+        {
+          port: 6543
+        }
+      ],
+      protocol: 'tcp',
+      internal_port: 6543
+    }
+  ]
 
   const machine = await fly.Machine.createMachine(req)
 

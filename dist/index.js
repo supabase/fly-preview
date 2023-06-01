@@ -58,7 +58,7 @@ const resolveOrgId = () => __awaiter(void 0, void 0, void 0, function* () {
     const output = yield exports.fly.Organization.getOrganization(slug);
     return output.organization.id;
 });
-function deployInfrastructure({ name, region, volume_size_gb, size, image, secrets, env, db_only }) {
+function deployInfrastructure({ name, region, volume_size_gb, size, image, secrets, env }) {
     return __awaiter(this, void 0, void 0, function* () {
         const organizationId = yield resolveOrgId();
         // Custom network is not supported by fly ssh: `${name}-network`
@@ -134,43 +134,37 @@ function deployInfrastructure({ name, region, volume_size_gb, size, image, secre
                 }
             }
         };
-        if (db_only) {
-            req.config.size = 'shared-cpu-2x';
-            req.config.env = Object.assign(Object.assign({}, req.config.env), { POSTGRES_ONLY: 'true' });
-        }
-        else {
-            req.config.services = [
-                ...req.config.services,
-                {
-                    ports: [
-                        {
-                            port: 80,
-                            handlers: [machine_1.ConnectionHandler.HTTP]
-                        }
-                    ],
-                    protocol: 'tcp',
-                    internal_port: 8000
-                },
-                {
-                    ports: [
-                        {
-                            port: 443
-                        }
-                    ],
-                    protocol: 'tcp',
-                    internal_port: 8443
-                },
-                {
-                    ports: [
-                        {
-                            port: 6543
-                        }
-                    ],
-                    protocol: 'tcp',
-                    internal_port: 6543
-                }
-            ];
-        }
+        req.config.services = [
+            ...req.config.services,
+            {
+                ports: [
+                    {
+                        port: 80,
+                        handlers: [machine_1.ConnectionHandler.HTTP]
+                    }
+                ],
+                protocol: 'tcp',
+                internal_port: 8000
+            },
+            {
+                ports: [
+                    {
+                        port: 443
+                    }
+                ],
+                protocol: 'tcp',
+                internal_port: 8443
+            },
+            {
+                ports: [
+                    {
+                        port: 6543
+                    }
+                ],
+                protocol: 'tcp',
+                internal_port: 6543
+            }
+        ];
         const machine = yield exports.fly.Machine.createMachine(req);
         return { machine, ip, volume: pgdata.volume };
     });
@@ -268,8 +262,7 @@ function run() {
                 name: ref,
                 region: process.env.FLY_MACHINE_REGION || 'sin',
                 size: process.env.FLY_MACHINE_SIZE || 'shared-cpu-4x',
-                image: 'sweatybridge/postgres:20230512-cc4f68f',
-                db_only: process.env.DB_ONLY === 'true',
+                image: 'supabase/postgres:aio-15.1.0.87',
                 project_ref: ref,
                 volume_size_gb: 1,
                 secrets: {

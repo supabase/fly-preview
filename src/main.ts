@@ -57,8 +57,7 @@ async function run(): Promise<void> {
       name: ref,
       region: process.env.FLY_MACHINE_REGION || 'sin',
       size: process.env.FLY_MACHINE_SIZE || 'shared-cpu-4x',
-      image: 'sweatybridge/postgres:20230512-cc4f68f',
-      db_only: process.env.DB_ONLY === 'true',
+      image: 'supabase/postgres:aio-15.1.0.87',
       project_ref: ref,
       volume_size_gb: 1,
       secrets: {
