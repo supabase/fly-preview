@@ -16,24 +16,22 @@ var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, ge
     });
 };
 Object.defineProperty(exports, "__esModule", ({ value: true }));
-exports.deployInfrastructure = exports.fly = void 0;
-const fly_admin_1 = __nccwpck_require__(9907);
+exports.deployInfrastructure = void 0;
 const machine_1 = __nccwpck_require__(2562);
 const network_1 = __nccwpck_require__(9059);
-exports.fly = (0, fly_admin_1.createClient)('FLY_API_TOKEN');
-const resolveVolume = (appId) => __awaiter(void 0, void 0, void 0, function* () {
-    const machines = yield exports.fly.Machine.listMachines(appId);
+const resolveVolume = (fly, appId) => __awaiter(void 0, void 0, void 0, function* () {
+    const machines = yield fly.Machine.listMachines(appId);
     const mount = machines.flatMap(m => m.config.mounts)[0];
     if (!mount) {
         throw new Error(`Failed to resolve volume for app: ${appId}`);
     }
     return mount.volume;
 });
-const makeVolume = (name, region, volume_size_gb, projectRef) => __awaiter(void 0, void 0, void 0, function* () {
+const makeVolume = (fly, name, region, volume_size_gb, projectRef) => __awaiter(void 0, void 0, void 0, function* () {
     const volumeName = `${name.replace(/-/g, '_')}_pgdata`;
     if (projectRef) {
-        const source = yield resolveVolume(projectRef);
-        const output = yield exports.fly.Volume.forkVolume({
+        const source = yield resolveVolume(fly, projectRef);
+        const output = yield fly.Volume.forkVolume({
             appId: name,
             sourceVolId: source,
             name: volumeName,
@@ -41,7 +39,7 @@ const makeVolume = (name, region, volume_size_gb, projectRef) => __awaiter(void 
         });
         return output.forkVolume;
     }
-    const output = yield exports.fly.Volume.createVolume({
+    const output = yield fly.Volume.createVolume({
         appId: name,
         name: volumeName,
         sizeGb: volume_size_gb,
@@ -49,31 +47,31 @@ const makeVolume = (name, region, volume_size_gb, projectRef) => __awaiter(void 
     });
     return output.createVolume;
 });
-const resolveOrgId = () => __awaiter(void 0, void 0, void 0, function* () {
+const resolveOrgId = (fly) => __awaiter(void 0, void 0, void 0, function* () {
     const orgId = process.env.FLY_ORGANIZATION_ID;
     if (orgId) {
         return orgId;
     }
     const slug = process.env.FLY_ORGANIZATION_SLUG || 'personal';
-    const output = yield exports.fly.Organization.getOrganization(slug);
+    const output = yield fly.Organization.getOrganization(slug);
     return output.organization.id;
 });
-function deployInfrastructure({ name, region, volume_size_gb, size, image, secrets, env, db_only }) {
+function deployInfrastructure(fly, { name, region, volume_size_gb, size, image, secrets, env }) {
     return __awaiter(this, void 0, void 0, function* () {
-        const organizationId = yield resolveOrgId();
+        const organizationId = yield resolveOrgId(fly);
         // Custom network is not supported by fly ssh: `${name}-network`
-        yield exports.fly.App.createApp({ name, organizationId });
+        yield fly.App.createApp({ name, organizationId });
         const [pgdata, ip] = yield Promise.all([
-            makeVolume(name, region, volume_size_gb, process.env.PROJECT_REF),
-            exports.fly.Network.allocateIpAddress({
+            makeVolume(fly, name, region, volume_size_gb, process.env.PROJECT_REF),
+            fly.Network.allocateIpAddress({
                 appId: name,
                 type: network_1.AddressType.v4
             }),
-            exports.fly.Network.allocateIpAddress({
+            fly.Network.allocateIpAddress({
                 appId: name,
                 type: network_1.AddressType.v6
             }),
-            exports.fly.Secret.setSecrets({
+            fly.Secret.setSecrets({
                 appId: name,
                 secrets: Object.entries(secrets)
                     .filter(([, value]) => value)
@@ -90,7 +88,7 @@ function deployInfrastructure({ name, region, volume_size_gb, size, image, secre
             config: {
                 image,
                 size,
-                env: Object.assign(Object.assign({}, env), { PGDATA: '/mnt/postgresql/data', SUPABASE_URL: `${API_URL}/system`, INIT_PAYLOAD_PATH: '/mnt/postgresql/payload.tar.gz' }),
+                env: Object.assign(Object.assign({}, env), { PGDATA: '/data/pgdata/data', SUPABASE_URL: `${API_URL}/system`, INIT_PAYLOAD_PATH: '/data/payload.tar.gz' }),
                 services: [
                     {
                         ports: [
@@ -99,13 +97,17 @@ function deployInfrastructure({ name, region, volume_size_gb, size, image, secre
                             }
                         ],
                         protocol: 'tcp',
-                        internal_port: 5432
+                        internal_port: 5432,
+                        concurrency: {
+                            type: 'connections',
+                            soft_limit: 60,
+                            hard_limit: 60
+                        }
                     },
                     {
                         ports: [
                             {
-                                port: 8085,
-                                handlers: [machine_1.ConnectionHandler.HTTP]
+                                port: 8085
                             }
                         ],
                         protocol: 'tcp',
@@ -115,7 +117,7 @@ function deployInfrastructure({ name, region, volume_size_gb, size, image, secre
                 mounts: [
                     {
                         volume: pgdata.volume.id,
-                        path: '/mnt/postgresql'
+                        path: '/data'
                     }
                 ],
                 checks: {
@@ -134,44 +136,38 @@ function deployInfrastructure({ name, region, volume_size_gb, size, image, secre
                 }
             }
         };
-        if (db_only) {
-            req.config.size = 'shared-cpu-2x';
-            req.config.env = Object.assign(Object.assign({}, req.config.env), { POSTGRES_ONLY: 'true' });
-        }
-        else {
-            req.config.services = [
-                ...req.config.services,
-                {
-                    ports: [
-                        {
-                            port: 80,
-                            handlers: [machine_1.ConnectionHandler.HTTP]
-                        }
-                    ],
-                    protocol: 'tcp',
-                    internal_port: 8000
-                },
-                {
-                    ports: [
-                        {
-                            port: 443
-                        }
-                    ],
-                    protocol: 'tcp',
-                    internal_port: 8443
-                },
-                {
-                    ports: [
-                        {
-                            port: 6543
-                        }
-                    ],
-                    protocol: 'tcp',
-                    internal_port: 6543
-                }
-            ];
-        }
-        const machine = yield exports.fly.Machine.createMachine(req);
+        req.config.services = [
+            ...req.config.services,
+            {
+                ports: [
+                    {
+                        port: 80,
+                        handlers: [machine_1.ConnectionHandler.HTTP]
+                    }
+                ],
+                protocol: 'tcp',
+                internal_port: 8000
+            },
+            {
+                ports: [
+                    {
+                        port: 443
+                    }
+                ],
+                protocol: 'tcp',
+                internal_port: 8443
+            },
+            {
+                ports: [
+                    {
+                        port: 6543
+                    }
+                ],
+                protocol: 'tcp',
+                internal_port: 6543
+            }
+        ];
+        const machine = yield fly.Machine.createMachine(req);
         return { machine, ip, volume: pgdata.volume };
     });
 }
@@ -223,6 +219,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 const core = __importStar(__nccwpck_require__(2186));
 const jsonwebtoken_1 = __importDefault(__nccwpck_require__(7486));
+const fly_admin_1 = __nccwpck_require__(9907);
 const deploy_1 = __nccwpck_require__(7538);
 const generate_jwt = (jwt_secret, ref) => {
     const options = { expiresIn: '10y' };
@@ -251,10 +248,11 @@ function run() {
             return core.setFailed('missing required env: FLY_API_TOKEN');
         }
         try {
+            const fly = (0, fly_admin_1.createClient)(process.env.FLY_API_TOKEN);
             const ref = getProjectRef(process.env.NEXT_PUBLIC_SUPABASE_URL).toLowerCase();
             console.log('Cleaning up existing deployments:', ref);
             try {
-                yield deploy_1.fly.App.deleteApp(ref);
+                yield fly.App.deleteApp(ref);
             }
             catch (error) {
                 // App not found
@@ -268,8 +266,7 @@ function run() {
                 name: ref,
                 region: process.env.FLY_MACHINE_REGION || 'sin',
                 size: process.env.FLY_MACHINE_SIZE || 'shared-cpu-4x',
-                image: 'sweatybridge/postgres:20230512-cc4f68f',
-                db_only: process.env.DB_ONLY === 'true',
+                image: 'supabase/postgres:aio-15.1.0.91',
                 project_ref: ref,
                 volume_size_gb: 1,
                 secrets: {
@@ -285,11 +282,11 @@ function run() {
             };
             console.log('Deploying fly project');
             try {
-                yield (0, deploy_1.deployInfrastructure)(config);
+                yield (0, deploy_1.deployInfrastructure)(fly, config);
             }
             catch (error) {
                 console.log(error);
-                yield deploy_1.fly.App.deleteApp(ref);
+                yield fly.App.deleteApp(ref);
                 throw error;
             }
             // Dumps action output

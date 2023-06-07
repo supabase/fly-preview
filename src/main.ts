@@ -1,6 +1,7 @@
 import * as core from '@actions/core'
 import jwt from 'jsonwebtoken'
-import {deployInfrastructure, fly, FlyConfig, FlyConfigSecrets} from './deploy'
+import {createClient} from 'fly-admin'
+import {deployInfrastructure, FlyConfig, FlyConfigSecrets} from './deploy'
 
 const generate_jwt = (
   jwt_secret: string,
@@ -38,6 +39,7 @@ async function run(): Promise<void> {
     return core.setFailed('missing required env: FLY_API_TOKEN')
   }
   try {
+    const fly = createClient(process.env.FLY_API_TOKEN)
     const ref = getProjectRef(
       process.env.NEXT_PUBLIC_SUPABASE_URL
     ).toLowerCase()
@@ -57,8 +59,7 @@ async function run(): Promise<void> {
       name: ref,
       region: process.env.FLY_MACHINE_REGION || 'sin',
       size: process.env.FLY_MACHINE_SIZE || 'shared-cpu-4x',
-      image: 'sweatybridge/postgres:20230512-cc4f68f',
-      db_only: process.env.DB_ONLY === 'true',
+      image: 'supabase/postgres:aio-15.1.0.91',
       project_ref: ref,
       volume_size_gb: 1,
       secrets: {
@@ -76,7 +77,7 @@ async function run(): Promise<void> {
     }
     console.log('Deploying fly project')
     try {
-      await deployInfrastructure(config)
+      await deployInfrastructure(fly, config)
     } catch (error) {
       console.log(error)
       await fly.App.deleteApp(ref)
